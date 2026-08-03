@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "check": "node --check server/index.js && node --check server/google.js && node --check server/gmail.js && node --check server/slack.js"
+    "check": "for f in server/*.js; do node --check \"$f\" || exit 1; done"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { consentUrl, saveTokenFromCode, authedClient, forgetToken } from './google.js';
 import * as gmail from './gmail.js';
 import * as slack from './slack.js';
+import * as github from './github.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = process.env.PORT || 3000;
@@ -17,7 +18,7 @@ const HOST = process.env.HOST || '127.0.0.1';
 
 // กัน token/secret หลุดออกไปกับข้อความ error ที่ส่งให้ browser
 const SECRET_RE =
-  /xox[pbaors]-[\w-]+|GOCSPX-[\w-]+|ya29\.[\w.-]+|[\w-]{20,}\.apps\.googleusercontent\.com|1\/\/[\w-]{20,}/gi;
+  /xox[pbaors]-[\w-]+|GOCSPX-[\w-]+|ya29\.[\w.-]+|[\w-]{20,}\.apps\.googleusercontent\.com|1\/\/[\w-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[\w]{20,}/gi;
 const safe = msg => String(msg || 'เกิดข้อผิดพลาด').replace(SECRET_RE, '[ซ่อนไว้]');
 
 const app = express();
@@ -88,7 +89,8 @@ app.post('/auth/google/logout', route(async () => {
 
 app.get('/api/status', route(async () => ({
   gmail: Boolean(await authedClient()),
-  slack: Boolean(process.env.SLACK_USER_TOKEN)
+  slack: Boolean(process.env.SLACK_USER_TOKEN),
+  github: Boolean(process.env.GITHUB_TOKEN)
 })));
 
 /* ---------- gmail ---------- */
@@ -111,12 +113,17 @@ app.get('/api/slack', route(async () => cached('slack', async () => {
   return { dms: d, feed: f };
 })));
 
+/* ---------- github ---------- */
+
+app.get('/api/github', route(async () => cached('github', () => github.overview())));
+
 /* ---------- go ---------- */
 
 app.listen(PORT, HOST, () => {
   console.log(`\n  myDashboard  →  http://localhost:${PORT}\n`);
   if (!process.env.GOOGLE_CLIENT_ID) console.log('  ⚠ ยังไม่ได้ตั้ง GOOGLE_CLIENT_ID ใน .env');
   if (!process.env.SLACK_USER_TOKEN) console.log('  ⚠ ยังไม่ได้ตั้ง SLACK_USER_TOKEN ใน .env');
+  if (!process.env.GITHUB_TOKEN) console.log('  ⚠ ยังไม่ได้ตั้ง GITHUB_TOKEN ใน .env');
   if (HOST !== '127.0.0.1' && HOST !== 'localhost') {
     console.log(`  ⚠ กำลัง listen ที่ ${HOST} — แดชบอร์ดไม่มีระบบ login`);
     console.log('    ใครที่เข้าถึงเครื่องนี้ทางเน็ตเวิร์กได้ จะอ่านอีเมลและ Slack ของคุณได้ทันที');

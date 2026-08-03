@@ -167,6 +167,24 @@ settings:
 
 ---
 
+## 2.5 GitHub — สร้าง personal access token
+
+ไปที่ https://github.com/settings/tokens → **Tokens (classic)** → **Generate new token (classic)**
+
+| ช่อง | ใส่อะไร |
+|---|---|
+| Note | `myDashboard` |
+| Expiration | เลือกตามสะดวก (90 วัน หรือ No expiration) |
+| Scopes | ติ๊ก **`read:user`** — เพิ่ม **`repo`** ถ้าอยากเห็นคอมมิทใน private repo ด้วย |
+
+กด **Generate token** → คัดลอกค่าที่ขึ้นต้นด้วย `ghp_` ทันที (ปิดหน้าไปแล้วดูซ้ำไม่ได้)
+
+> ใช้ **GraphQL API** เพราะ contribution calendar ไม่มี endpoint ใน REST เลย — ปฏิทินกับคอมมิทล่าสุดดึงมาในคิวรีเดียว
+>
+> `read:user` ให้สิทธิ์อ่านโปรไฟล์ ไม่ให้สิทธิ์แก้อะไร ส่วน `repo` ให้สิทธิ์อ่าน**และเขียน** private repo — แดชบอร์ดอ่านอย่างเดียว แต่ GitHub ไม่มี scope อ่านอย่างเดียวสำหรับ private repo ใน token แบบ classic ถ้าไม่สบายใจให้ข้าม `repo` ไป จะเห็นเฉพาะ public
+
+---
+
 ## 3. ใส่ค่าลง `.env`
 
 ```bash
@@ -174,15 +192,20 @@ cd myDashboard
 cp .env.example .env
 ```
 
-เปิด `.env` แล้วเติม 3 ค่า
+เปิด `.env` แล้วเติมค่า
 
 ```
 GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-xxxxx
 GOOGLE_REDIRECT_URI=http://localhost:3000/auth/google/callback
 SLACK_USER_TOKEN=xoxp-xxxxx
+GITHUB_TOKEN=ghp_xxxxx
+THB_PER_USD=36
 PORT=3000
+HOST=127.0.0.1
 ```
+
+แต่ละแหล่งไม่ขึ้นต่อกัน — ใส่เท่าที่มีก่อนได้ แท็บที่ยังไม่มี token จะขึ้นข้อความบอกว่าต้องตั้งอะไร
 
 `.env` อยู่ใน `.gitignore` แล้ว จะไม่ติดขึ้น git
 
@@ -221,7 +244,7 @@ Slack ไม่ต้องกดอะไร ใช้ token จาก `.env` �
 curl -s localhost:3000/api/status
 ```
 
-ควรได้ `{"gmail":true,"slack":true}`
+ควรได้ `{"gmail":true,"slack":true,"github":true}`
 
 ```bash
 curl -s localhost:3000/api/mail/summary | head -c 300
@@ -239,6 +262,8 @@ curl -s localhost:3000/api/slack | head -c 300
 | `/api/status` คืน `gmail:false` ทั้งที่เพิ่ง authorize | ไฟล์ `token.json` เขียนไม่สำเร็จ — เช็คสิทธิ์เขียนในโฟลเดอร์ |
 | `slack …: missing_scope (ต้องการ scope: …)` | scope ที่ขาดอยู่ในข้อความ error — เพิ่มใน **User Token Scopes** แล้วต้อง **Reinstall to Workspace** ใหม่ (token เดิมใช้ไม่ได้ ต้องคัดลอกตัวใหม่) |
 | `invalid_auth` | token ผิดหรือหมดอายุ / เผลอใช้ Bot token (`xoxb-`) แทน user token (`xoxp-`) |
+| `GITHUB_TOKEN ใช้ไม่ได้` | token หมดอายุหรือคัดลอกไม่ครบ — สร้างใหม่ที่ github.com/settings/tokens |
+| แท็บ GitHub ว่าง ทั้งที่มี token | token ไม่มี scope `read:user` — แก้ scope ของ token เดิมได้เลย ไม่ต้องสร้างใหม่ |
 | Gmail หลุดสิทธิ์ทุก 7 วัน | OAuth consent screen สถานะ Testing → refresh token หมดอายุ 7 วัน กด **Publish app** ถ้าอยากใช้ยาว ๆ (จะขึ้นเตือน unverified แต่ยังใช้ได้) |
 | `/api/slack` ช้ามาก | ยิง `conversations.history` ทีละห้อง จำกัดไว้ 25 ห้อง — ผลลัพธ์ cache 60 วินาที โหลดรอบสองจะเร็ว |
 | อยากล้างการเชื่อม Gmail | แท็บ "เชื่อมต่ออื่น ๆ" → ปุ่ม **ยกเลิกการเชื่อม** (ลบ `token.json`) |

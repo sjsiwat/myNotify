@@ -119,6 +119,43 @@ tbody tr:hover{background:var(--surface-2)}
   .gm-t{flex-basis:100%;-webkit-line-clamp:3}
 }
 
+/* ---- ปฏิทิน contribution แบบ GitHub ---- */
+.gh-cal{padding:16px;overflow-x:auto}
+.gh-in{display:inline-block;min-width:100%}
+.gh-months{margin-left:30px;display:grid;column-gap:3px;font-size:11px;color:var(--ink-3);margin-bottom:5px}
+.gh-months span{white-space:nowrap;overflow:visible}
+.gh-body{display:flex;gap:6px}
+.gh-days{width:24px;display:grid;grid-template-rows:repeat(7,11px);row-gap:3px;
+  font-size:10px;color:var(--ink-3);line-height:11px}
+.gh-grid{display:grid;grid-template-rows:repeat(7,11px);grid-auto-flow:column;grid-auto-columns:11px;gap:3px}
+.gh-grid i{border-radius:2px;background:#ebedf0;outline:1px solid rgba(27,31,35,.04);outline-offset:-1px}
+.gh-grid i.l1{background:#9be9a8}
+.gh-grid i.l2{background:#40c463}
+.gh-grid i.l3{background:#30a14e}
+.gh-grid i.l4{background:#216e39}
+.gh-grid i.pad{background:none;outline:0}
+.gh-legend{display:flex;align-items:center;gap:4px;justify-content:flex-end;
+  margin-top:9px;font-size:11px;color:var(--ink-3)}
+.gh-legend i{width:11px;height:11px;border-radius:2px;background:#ebedf0;
+  outline:1px solid rgba(27,31,35,.04);outline-offset:-1px}
+
+.gh-cm{display:flex;gap:12px;align-items:baseline;padding:10px 16px;border-bottom:1px solid var(--line-soft)}
+.gh-cm:last-child{border-bottom:0}
+.gh-cm:hover{background:var(--surface-2)}
+.gh-cm .repo{width:30%;max-width:210px;flex:none;font-size:12.5px;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gh-cm .msg{flex:1;min-width:0;font-size:12.5px;color:var(--ink-2);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.gh-cm .sha{flex:none;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:var(--ink-3)}
+.gh-cm .when{flex:none}
+.gh-cm a{color:inherit;text-decoration:none}
+.gh-cm a:hover{text-decoration:underline}
+@media (max-width:560px){
+  .gh-cm{flex-wrap:wrap;gap:2px 10px}
+  .gh-cm .repo{width:auto;max-width:none}
+  .gh-cm .msg{flex-basis:100%}
+}
+
 .big{padding:16px;display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--line-soft)}
 .big .n{font-size:31px;font-weight:660;letter-spacing:-.03em;line-height:1}
 .big .s{font-size:12.5px;color:var(--ink-3)}
@@ -168,6 +205,7 @@ tbody tr:hover{background:var(--surface-2)}
     <button class="tab" data-t="mail">กล่องจดหมาย</button>
     <button class="tab" data-t="spend">รายจ่าย</button>
     <button class="tab" data-t="slack">Slack</button>
+    <button class="tab" data-t="github">GitHub</button>
     <button class="tab" data-t="connect">เชื่อมต่ออื่น ๆ</button>
   </div>
 
@@ -253,6 +291,18 @@ tbody tr:hover{background:var(--surface-2)}
     </div>
   </section>
 
+  <!-- GITHUB -->
+  <section class="panel" id="p-github">
+    <div class="card">
+      <h2><span id="ghTotal">Contribution activity</span> <span class="hint" id="ghLogin"></span></h2>
+      <div id="ghCalWrap"><div class="skel"><span class="spin"></span>กำลังโหลด…</div></div>
+    </div>
+    <div class="card">
+      <h2>คอมมิทล่าสุด <span class="hint">จาก repo ที่ push ล่าสุด</span></h2>
+      <div id="ghCommits"><div class="skel"><span class="spin"></span>กำลังโหลด…</div></div>
+    </div>
+  </section>
+
   <!-- CONNECT -->
   <section class="panel" id="p-connect">
     <div class="card">
@@ -322,7 +372,8 @@ const httpSource = {
   summary: () => api('/api/mail/summary'),
   inbox:   () => api('/api/mail/inbox'),
   spend:   () => api('/api/spend'),
-  slack:   () => api('/api/slack')
+  slack:   () => api('/api/slack'),
+  github:  () => api('/api/github')
 };
 
 /* ================= adapter: Cowork (MCP) ================= */
@@ -462,7 +513,10 @@ const coworkSource = {
       stool('slack_search_public_and_private', { query: 'after:' + since, limit: 20, sort: 'timestamp', channel_types: 'public_channel,private_channel', only_my_channels: true, include_context: false, response_format: 'concise' })
     ]);
     return { dms: parseSlack(dmRes.results).slice(0, 12), feed: parseSlack(feedRes.results) };
-  }
+  },
+
+  // ไม่มี MCP connector ของ GitHub — โหมด Cowork จึงไม่มีข้อมูลส่วนนี้
+  github: async () => { throw new Error('โหมด Cowork ยังไม่รองรับ GitHub'); }
 };
 
 const src = HAS_COWORK ? coworkSource : httpSource;
@@ -741,6 +795,59 @@ function drawSlackChart() {
   new Chart($('#chSlack'), { type: 'bar', data: { labels: keys.map(k => '#' + k), datasets: [{ data: vals, backgroundColor: keys.map((_, i) => PAL[i % PAL.length]), borderRadius: 5, barPercentage: .7 }] }, options: chanOpts() });
 }
 
+/* ================= github ================= */
+const MONTH_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/** ปฏิทิน contribution — คอลัมน์ละสัปดาห์ แถวละวัน (แถว 0 = อาทิตย์) */
+function calendarHtml(weeks) {
+  const cells = [];
+  // สัปดาห์แรกมักไม่เต็ม ต้องเติมช่องว่างหน้าให้ตรงแถววัน ไม่งั้นทั้งกริดเลื่อน
+  for (let i = 0; i < (weeks[0]?.[0]?.weekday || 0); i++) cells.push('<i class="pad"></i>');
+  weeks.forEach(w => w.forEach(d => {
+    const when = new Date(d.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+    cells.push(`<i class="l${d.level}" title="${d.count} contribution${d.count === 1 ? '' : 's'} · ${esc(when)}"></i>`);
+  }));
+
+  // ป้ายเดือนวางที่สัปดาห์แรกของเดือน เว้นอันที่ชิดกันเกินไป
+  const months = [];
+  let lastMonth = -1, lastCol = -99;
+  weeks.forEach((w, i) => {
+    const m = new Date(w[0].date).getMonth();
+    if (m !== lastMonth && i - lastCol >= 3) {
+      months.push(`<span style="grid-column:${i + 1}">${MONTH_EN[m]}</span>`);
+      lastCol = i;
+    }
+    lastMonth = m;
+  });
+
+  return `<div class="gh-cal"><div class="gh-in">
+    <div class="gh-months" style="grid-template-columns:repeat(${weeks.length},11px)">${months.join('')}</div>
+    <div class="gh-body">
+      <div class="gh-days"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div>
+      <div class="gh-grid">${cells.join('')}</div>
+    </div>
+    <div class="gh-legend">Less <i></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i> More</div>
+  </div></div>`;
+}
+
+async function loadGithub() {
+  const g = await src.github();
+
+  $('#ghTotal').textContent = `${nfmt(g.total)} contributions in the last year`;
+  $('#ghLogin').textContent = '@' + g.login;
+  $('#ghCalWrap').innerHTML = g.weeks?.length
+    ? calendarHtml(g.weeks)
+    : '<div class="empty">ไม่มีข้อมูล contribution</div>';
+
+  $('#ghCommits').innerHTML = g.commits.length ? g.commits.map(c => `
+    <div class="gh-cm">
+      <span class="repo">${esc(c.repo)}</span>
+      <span class="msg"><a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(c.msg)}</a></span>
+      <span class="sha">${esc(c.sha)}</span>
+      <span class="when">${relTime(c.date)}</span>
+    </div>`).join('') : '<div class="empty">ยังไม่มีคอมมิทใน repo ที่ push ล่าสุด</div>';
+}
+
 /* ================= gate: ยังไม่ได้เชื่อม ================= */
 function gmailGate(authUrl) {
   const gate = authUrl
@@ -779,6 +886,10 @@ function paintConnect(status) {
     <div class="conn"><h3>Slack ${badge(status.slack)}</h3>
       <p>${HAS_COWORK ? 'ผ่าน MCP connector ของ Claude' : 'ผ่าน user token (xoxp-) ใน .env — DM และช่องที่คุณอยู่'}</p>
       ${!HAS_COWORK && !status.slack ? '<p class="hint2">ตั้ง <b>SLACK_USER_TOKEN</b> ใน .env แล้วรีสตาร์ต server</p>' : ''}</div>
+
+    <div class="conn"><h3>GitHub ${badge(status.github)}</h3>
+      <p>${HAS_COWORK ? 'โหมด Cowork ยังไม่รองรับ' : 'ผ่าน GraphQL API ด้วย personal access token — contribution calendar และคอมมิทล่าสุด'}</p>
+      ${!HAS_COWORK && !status.github ? '<p class="hint2">ตั้ง <b>GITHUB_TOKEN</b> ใน .env แล้วรีสตาร์ต server</p>' : ''}</div>
 
     <div class="conn"><h3>Notion <span class="status off">ต่อไม่ได้</span></h3>
       <p>workspace เป็นของคนอื่น — ต้องให้เจ้าของอนุญาต หรือใช้ Notion ส่วนตัวแทน</p></div>
@@ -838,6 +949,17 @@ function paintConnect(status) {
     });
   } else {
     slackGate(HAS_COWORK ? 'โหมด Cowork: ยังไม่ได้ตั้ง MCP server ID ของ Slack' : 'ยังไม่ได้ตั้ง SLACK_USER_TOKEN ใน .env');
+  }
+
+  if (status.github) {
+    loadGithub().catch(e => {
+      $('#ghCalWrap').innerHTML = `<p class="err">โหลด GitHub ไม่สำเร็จ: ${esc(e.message)}</p>`;
+      $('#ghCommits').innerHTML = '<div class="empty">—</div>';
+    });
+  } else {
+    const msg = HAS_COWORK ? 'โหมด Cowork ยังไม่รองรับ GitHub' : 'ยังไม่ได้ตั้ง GITHUB_TOKEN ใน .env';
+    $('#ghCalWrap').innerHTML = `<div class="gate"><p>${esc(msg)}</p></div>`;
+    $('#ghCommits').innerHTML = '<div class="empty">—</div>';
   }
 })();
 </script>
