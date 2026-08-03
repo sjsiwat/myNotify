@@ -122,11 +122,17 @@ const CUR_RE = new RegExp(
   `|฿\\s*${NUM}` +
   `|${NUM}\\s*(?:บาท|บ\\.|THB\\b)`, 'gi');
 
-/* คำที่บอกว่าตัวเลขถัดไปคือยอดที่ถูกเรียกเก็บจริง */
-const LABEL_RE = new RegExp(
-  '(?:ยอดชำระ|ยอดรวม|ยอดเงิน|รวมชำระ(?:ทั้งหมด)?|จำนวนเงิน|จำนวน|ราคารวม' +
-  '|grand\\s*total|total(?:\\s*amount)?|amount(?:\\s*(?:charged|paid|due))?|charged)' +
-  `\\s*(?:[:=]|คือ)?\\s*(?:฿|\\$|THB|USD)?\\s*${NUM}\\s*(฿|\\$|บาท|บ\\.|THB|USD)?`, 'gi');
+/* ตัวเลขที่ตามหลังคำกำกับ — จับสกุลเงินได้ทั้งหน้าและหลังตัวเลข */
+const AMT_TAIL = `\\s*(?:[:=]|คือ)?\\s*(฿|\\$|THB|USD)?\\s*${NUM}\\s*(฿|บาท|บ\\.|THB|USD|\\$)?`;
+
+/* คำกำกับที่ชัดเจนว่าเป็นยอดเงิน เชื่อได้เลยแม้ไม่มีสัญลักษณ์สกุล */
+const LABEL_STRONG = new RegExp(
+  '(?:ยอดชำระ|ยอดรวม|ยอดเงิน|ยอดสุทธิ|รวมชำระ(?:ทั้งหมด)?|จำนวนเงิน|ราคารวม' +
+  '|grand\\s*total|total(?:\\s*amount)?|amount(?:\\s*(?:charged|paid|due))?|charged)' + AMT_TAIL, 'gi');
+
+/* คำกำกับกำกวม — "จำนวน 1 ชิ้น" ในอีเมลแจ้งส่งของก็เข้าเกณฑ์นี้
+   จึงรับเฉพาะตอนที่มีสัญลักษณ์สกุลเงินกำกับอยู่ด้วย เช่น "จำนวน 1,336.16 บ." */
+const LABEL_WEAK = new RegExp('(?:จำนวน|ราคา|รวม)' + AMT_TAIL, 'gi');
 
 /* ตัวเลขที่อยู่ใกล้คำพวกนี้ไม่ใช่ยอดที่จ่าย — เช่น "วงเงินคงเหลือใช้ได้ 19,511.80 บ." */
 const NOT_A_CHARGE = /วงเงิน|คงเหลือ|ยอดยกมา|balance|available|remaining|limit|คะแนน|point|ส่วนลด|discount|ค่าธรรมเนียม|fee/i;
@@ -151,25 +157,34 @@ const curOf = sym =>
  *      แม่นกว่ามาก เพราะบิลบัตรเครดิตมักมี "วงเงินคงเหลือ" ที่มากกว่ายอดจริง
  *   2. ถ้าไม่มีคำกำกับ ค่อยถอยไปใช้ตัวเลขที่มีสัญลักษณ์เงิน แล้วหยิบตัวที่มากสุด
  */
+function labelledAmounts(text, re, needCurrency) {
+  const out = [];
+  let m;
+  re.lastIndex = 0;
+  while ((m = re.exec(text)) !== null) {
+    const cur = curOf(m[1] || m[3]);
+    if (needCurrency && !cur) continue;
+    // ดูข้อความข้างหน้าเผื่อเป็น "วงเงินคงเหลือ" หรือ "ส่วนลด"
+    if (NOT_A_CHARGE.test(text.slice(Math.max(0, m.index - 24), m.index + m[0].length))) continue;
+    const val = toNum(m[2]);
+    if (sane(val)) out.push({ val, cur });
+  }
+  return out;
+}
+
 export function extractAmount(text) {
   if (!text) return null;
 
-  const labelled = [];
-  let m;
-  LABEL_RE.lastIndex = 0;
-  while ((m = LABEL_RE.exec(text)) !== null) {
-    // ดูข้อความข้างหน้าเผื่อเป็น "วงเงินคงเหลือ" หรือ "ส่วนลด"
-    if (NOT_A_CHARGE.test(text.slice(Math.max(0, m.index - 24), m.index + m[0].length))) continue;
-    const val = toNum(m[1]);
-    if (sane(val)) labelled.push({ val, cur: curOf(m[2]) });
-  }
+  const labelled = labelledAmounts(text, LABEL_STRONG, false);
+  const fallbackLabelled = labelled.length ? labelled : labelledAmounts(text, LABEL_WEAK, true);
 
-  if (labelled.length) {
-    const best = labelled.sort((a, b) => b.val - a.val)[0];
+  if (fallbackLabelled.length) {
+    const best = fallbackLabelled.sort((a, b) => b.val - a.val)[0];
     return { cur: best.cur || guessCurrency(text), val: best.val };
   }
 
   const usd = [], thb = [];
+  let m;
   CUR_RE.lastIndex = 0;
   while ((m = CUR_RE.exec(text)) !== null) {
     if (m[1]) usd.push(toNum(m[1]));
@@ -188,42 +203,45 @@ export function extractAmount(text) {
 const SPEND_Q =
   'in:anywhere {' +
   'subject:receipt subject:invoice subject:renew subject:payment subject:billing ' +
-  'subject:"has been charged" ' +
-  'subject:ใบเสร็จ subject:ชำระเงิน subject:ชำระค่า subject:โอนเงิน ' +
-  'subject:แจ้งรายการ subject:เติมเงิน subject:ค่าสินค้า' +
+  'subject:charged subject:statement subject:"order confirmation" ' +
+  'subject:ใบเสร็จ subject:ใบกำกับภาษี subject:ชำระเงิน subject:ชำระค่า ' +
+  'subject:โอนเงิน subject:แจ้งรายการ subject:เติมเงิน subject:ค่าสินค้า ' +
+  'subject:ตัดบัญชี subject:หักบัญชี subject:คำสั่งซื้อ subject:ต่ออายุ' +
   '} -in:draft -in:sent newer_than:1y';   // กราฟรายเดือนจะได้ไม่กินช่วงหลายปี
 
-export async function spend(limit = 12) {
+/** อัตราแลกเปลี่ยนคงที่ ใช้รวมยอดสองสกุลให้เทียบกันได้ — ไม่ได้ดึงเรตสด */
+export const THB_PER_USD = Number(process.env.THB_PER_USD) || 36;
+
+export async function spend(limit = 30) {
   const gmail = await gmailClient();
   if (!gmail) return null;
 
   const { data } = await gmail.users.messages.list({
-    userId: 'me', q: SPEND_Q, maxResults: 40
+    userId: 'me', q: SPEND_Q, maxResults: 60
   });
 
   const ids = (data.messages || []).slice(0, limit);
-  const bills = [];
 
-  for (const { id } of ids) {
+  // ดึงขนานกัน — ทีละฉบับช้าเกินไปเมื่อขยับเพดานจาก 12 เป็น 30
+  const bills = (await Promise.all(ids.map(async ({ id }) => {
     let msg;
     try {
       msg = (await gmail.users.messages.get({ userId: 'me', id, format: 'full' })).data;
     } catch {
-      continue;
+      return null;
     }
-    const body = bodyText(msg.payload);
-    const amt = extractAmount(body);
-    if (!amt) continue;
+    const amt = extractAmount(bodyText(msg.payload));
+    if (!amt) return null;
 
     const from = emailOf(header(msg, 'From'));
-    bills.push({
+    return {
       name: displayName(from),
       domain: domainOf(from),
       subject: header(msg, 'Subject'),
       date: new Date(Number(msg.internalDate)).toISOString(),
       ...amt
-    });
-  }
+    };
+  }))).filter(Boolean).sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  return { bills, scanned: ids.length };
+  return { bills, scanned: ids.length, rate: THB_PER_USD };
 }

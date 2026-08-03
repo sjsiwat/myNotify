@@ -193,7 +193,7 @@ tbody tr:hover{background:var(--surface-2)}
 
     <div class="grid2">
       <div class="card">
-        <h2>รายจ่าย subscription <button class="more" data-go="spend">ดูบิล →</button></h2>
+        <h2>รายจ่ายรวม <button class="more" data-go="spend">ดูบิล →</button></h2>
         <div id="ovSpendBig" class="big"><span class="n">–</span><span class="s">กำลังอ่านใบเสร็จ…</span></div>
         <div class="chart-sm"><canvas id="chOvSpend"></canvas></div>
       </div>
@@ -225,7 +225,7 @@ tbody tr:hover{background:var(--surface-2)}
       <div class="kpi"><div class="lab">จำนวนบิล</div><div class="val">–</div></div>
     </div>
     <div class="card">
-      <h2>รายจ่ายตามเดือน <span class="hint">USD</span></h2>
+      <h2>รายจ่ายตามเดือน <span class="hint" id="rateHint">บาท</span></h2>
       <div class="chart-box"><canvas id="chSpend"></canvas></div>
     </div>
     <div class="card">
@@ -294,6 +294,8 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;
 const deent = s => String(s ?? '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&nbsp;/g,' ');
 const nfmt = n => (n ?? 0).toLocaleString('en-US');
 const PAL = ['#c96442','#3a6ea5','#2f8f5b','#b8823a','#7a5ea8','#b0567c','#4a8f8f','#8a6d3b'];
+/* เรตสำรอง ใช้เมื่อ backend ไม่ได้ส่งมา (เช่นโหมด Cowork) — ตั้งจริงที่ THB_PER_USD ใน .env */
+const RATE_FALLBACK = 36;
 
 function relTime(iso) {
   if (!iso) return '';
@@ -490,7 +492,7 @@ function paintKpis() {
   const s = state;
   if (!s.mail && !s.slackDm && !s.spend && !s.gmailGated) return;
   const m = s.mail;
-  const usd = (s.spend || []).filter(b => b.cur === 'USD').reduce((a, b) => a + b.val, 0);
+  const total = (s.spend || []).reduce((a, b) => a + toThb(b), 0);
   const dms = (s.slackDm || []).length;
   const waiting = s.gmailGated ? 'ยังไม่ได้เชื่อม Gmail' : 'กำลังโหลด';
   $('#kpis').innerHTML = `
@@ -498,7 +500,7 @@ function paintKpis() {
       <div class="note">${m ? (m.inbox === 0 ? 'สะอาด' : 'รอคุณดู') : waiting}</div></div>
     <div class="kpi${dms > 0 ? ' hi' : ''}"><div class="lab">Slack ถึงคุณ</div><div class="val">${s.slackDm ? dms : '–'}</div>
       <div class="note">${s.slackDm ? (dms ? 'ล่าสุด ' + relTime(s.slackDm[0].ts) + 'ที่แล้ว' : 'ไม่มี') : 'กำลังโหลด'}</div></div>
-    <div class="kpi"><div class="lab">รายจ่าย USD</div><div class="val">${s.spend ? '$' + usd.toFixed(2) : '–'}</div>
+    <div class="kpi"><div class="lab">รายจ่ายรวม</div><div class="val">${s.spend ? '฿' + nfmt(Math.round(total)) : '–'}</div>
       <div class="note">${s.spend ? s.spend.length + ' บิลที่อ่านได้' : waiting}</div></div>
     <div class="kpi"><div class="lab">ยังไม่ได้อ่าน</div><div class="val">${m ? nfmt(m.unread) : '–'}</div>
       <div class="note">${m ? 'ทั้งบัญชี' : waiting}</div></div>`;
@@ -551,17 +553,24 @@ async function loadSpend() {
 
   const bills = res.bills || [];
   state.spend = bills;
+  state.rate = res.rate || RATE_FALLBACK;
   paintKpis();
 
+  const nUsd = bills.filter(b => b.cur === 'USD').length;
   const usd = bills.filter(b => b.cur === 'USD').reduce((s, b) => s + b.val, 0);
   const thb = bills.filter(b => b.cur === 'THB').reduce((s, b) => s + b.val, 0);
+  const total = thb + usd * state.rate;
 
-  $('#ovSpendBig').innerHTML = `<span class="n">$${usd.toFixed(2)}</span><span class="s">+ ฿${nfmt(Math.round(thb))} · จาก ${bills.length} บิล</span>`;
+  $('#ovSpendBig').innerHTML = `<span class="n">฿${nfmt(Math.round(total))}</span><span class="s">จาก ${bills.length} บิล · รวม USD ที่แปลงแล้ว</span>`;
+  $('#rateHint').textContent = `บาท · แปลง USD ที่ ${state.rate} ฿/$`;
 
   $('#spendKpis').innerHTML = `
-    <div class="kpi hi"><div class="lab">รวม USD</div><div class="val">$${usd.toFixed(2)}</div><div class="note">จากบิลที่อ่านได้</div></div>
-    <div class="kpi"><div class="lab">รวม THB</div><div class="val">฿${nfmt(Math.round(thb))}</div><div class="note">จากบิลที่อ่านได้</div></div>
-    <div class="kpi"><div class="lab">จำนวนบิล</div><div class="val">${bills.length}</div><div class="note">จาก ${res.scanned ?? bills.length} ฉบับที่ตรวจ</div></div>`;
+    <div class="kpi hi"><div class="lab">รวมทั้งหมด</div><div class="val">฿${nfmt(Math.round(total))}</div>
+      <div class="note">${bills.length} บิล · แปลง USD ที่ ${state.rate} ฿/$</div></div>
+    <div class="kpi"><div class="lab">เฉพาะ THB</div><div class="val">฿${nfmt(Math.round(thb))}</div>
+      <div class="note">${bills.length - nUsd} บิล</div></div>
+    <div class="kpi"><div class="lab">เฉพาะ USD</div><div class="val">$${usd.toFixed(2)}</div>
+      <div class="note">${nUsd} บิล · = ฿${nfmt(Math.round(usd * state.rate))}</div></div>`;
 
   $('#spendWrap').innerHTML = bills.length ? `<table><thead><tr><th>ผู้ให้บริการ</th><th>รายการ</th><th>วันที่</th><th style="text-align:right">ยอด</th></tr></thead><tbody>${
     bills.map(b => `<tr>
@@ -574,37 +583,53 @@ async function loadSpend() {
   drawOvSpend(); drawSpendChart();
 }
 
+/** รวมทุกบิลเป็นบาทต่อเดือน — USD แปลงด้วยเรตคงที่ ไม่ได้ดึงเรตสด */
+const toThb = b => b.cur === 'USD' ? b.val * (state.rate || RATE_FALLBACK) : b.val;
+
 function monthly(bills) {
   const by = {};
-  bills.filter(b => b.cur === 'USD').forEach(b => {
-    const k = new Date(b.date).toLocaleDateString('th-TH', { month: 'short', year: '2-digit' });
-    by[k] = (by[k] || 0) + b.val;
+  bills.forEach(b => {
+    const d = new Date(b.date);
+    const k = d.toLocaleDateString('th-TH', { month: 'short', year: '2-digit' });
+    if (!by[k]) by[k] = { sum: 0, at: d };
+    by[k].sum += toThb(b);
+    if (d < by[k].at) by[k].at = d;
   });
-  return by;
+  // เรียงตามเวลาจริง ไม่ใช่ตามตัวอักษรของชื่อเดือน
+  return Object.entries(by).sort((a, b) => a[1].at - b[1].at)
+    .map(([k, v]) => [k, Math.round(v.sum)]);
 }
-function barOpts(fmt) {
+function barOpts() {
   return {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmt(c) } } },
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => '฿' + nfmt(c.parsed.y) } } },
     scales: {
       x: { grid: { display: false }, border: { display: false }, ticks: { color: '#5f5c56', font: { size: 11 } } },
-      y: { grid: { color: '#f0eeea' }, border: { display: false }, ticks: { color: '#918d85', font: { size: 10.5 }, callback: v => '$' + v } }
+      y: { grid: { color: '#f0eeea' }, border: { display: false },
+           ticks: { color: '#918d85', font: { size: 10.5 }, callback: v => '฿' + nfmt(v) } }
     }
   };
 }
+function spendChart(canvas, barPct) {
+  const rows = monthly(state.spend);
+  if (!rows.length) return false;
+  new Chart($(canvas), {
+    type: 'bar',
+    data: {
+      labels: rows.map(r => r[0]),
+      datasets: [{ data: rows.map(r => r[1]), backgroundColor: '#c96442', borderRadius: 5, barPercentage: barPct }]
+    },
+    options: barOpts()
+  });
+  return true;
+}
 function drawOvSpend() {
   if (drawn.ovSpend || !state.spend || !visible('#chOvSpend')) return;
-  const by = monthly(state.spend); const k = Object.keys(by);
-  if (!k.length) return;
-  drawn.ovSpend = true;
-  new Chart($('#chOvSpend'), { type: 'bar', data: { labels: k, datasets: [{ data: k.map(x => +by[x].toFixed(2)), backgroundColor: '#c96442', borderRadius: 5, barPercentage: .5 }] }, options: barOpts(c => '$' + c.parsed.y.toFixed(2)) });
+  drawn.ovSpend = spendChart('#chOvSpend', .5);
 }
 function drawSpendChart() {
   if (drawn.spend || !state.spend || !visible('#chSpend')) return;
-  const by = monthly(state.spend); const k = Object.keys(by);
-  if (!k.length) return;
-  drawn.spend = true;
-  new Chart($('#chSpend'), { type: 'bar', data: { labels: k, datasets: [{ data: k.map(x => +by[x].toFixed(2)), backgroundColor: '#c96442', borderRadius: 5, barPercentage: .55 }] }, options: barOpts(c => '$' + c.parsed.y.toFixed(2)) });
+  drawn.spend = spendChart('#chSpend', .55);
 }
 
 /* ================= slack ================= */
