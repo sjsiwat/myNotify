@@ -195,7 +195,7 @@ tbody tr:hover{background:var(--surface-2)}
   <div class="head">
     <div>
       <h1>ภาพรวมงานของคุณ</h1>
-      <div class="sub" id="modeLine">Gmail + Slack · ดึงข้อมูลสดทุกครั้งที่เปิด</div>
+      <div class="sub" id="modeLine">Gmail + Slack + GitHub · ดึงข้อมูลสดทุกครั้งที่เปิด</div>
     </div>
     <div class="pill"><span class="dot" id="statusDot"></span><span id="statusText">กำลังโหลด…</span></div>
   </div>
@@ -917,7 +917,7 @@ function paintConnect(status) {
 
   $('#modeLine').textContent = HAS_COWORK
     ? 'Gmail + Slack · ดึงข้อมูลสดผ่าน connector'
-    : 'Gmail + Slack · ดึงข้อมูลสดผ่าน backend ของตัวเอง';
+    : 'Gmail + Slack + GitHub · ดึงข้อมูลสดผ่าน backend ของตัวเอง';
 
   let status = { gmail: true, slack: true };
   try { status = await src.status(); } catch (e) {}
