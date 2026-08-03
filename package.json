@@ -1,0 +1,20 @@
+{
+  "name": "mydashboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Gmail + Slack dashboard with its own backend",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "check": "node --check server/index.js && node --check server/google.js && node --check server/gmail.js && node --check server/slack.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "googleapis": "^173.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
