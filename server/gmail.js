@@ -199,14 +199,19 @@ export function extractAmount(text) {
 }
 
 /* ธนาคารไทยไม่ได้ใช้คำอังกฤษเลย เช่น "แจ้งรายการชำระเงินสำเร็จ" ของ CardX
-   จึงต้องใส่คำไทยด้วย ไม่งั้นบิลธนาคารหลุดหมด */
-const SPEND_Q =
+   จึงต้องใส่คำไทยด้วย ไม่งั้นบิลธนาคารหลุดหมด
+
+   Gmail ตัดคำไทยเป็น token — "แจ้งรายการ" ไม่แมตช์ "แจ้งการทำรายการ"
+   เพราะเป็นคนละ token กัน ธนาคารเดียวกันยังใช้หลายสำนวนในอีเมลคนละแบบ
+   ถ้าเจอบิลที่ไม่ขึ้นในแดชบอร์ด ให้เพิ่มคำจากหัวข้ออีเมลนั้นลงในลิสต์นี้ */
+export const SPEND_Q =
   'in:anywhere {' +
   'subject:receipt subject:invoice subject:renew subject:payment subject:billing ' +
   'subject:charged subject:statement subject:"order confirmation" ' +
   'subject:ใบเสร็จ subject:ใบกำกับภาษี subject:ชำระเงิน subject:ชำระค่า ' +
   'subject:โอนเงิน subject:แจ้งรายการ subject:เติมเงิน subject:ค่าสินค้า ' +
-  'subject:ตัดบัญชี subject:หักบัญชี subject:คำสั่งซื้อ subject:ต่ออายุ' +
+  'subject:ตัดบัญชี subject:หักบัญชี subject:คำสั่งซื้อ subject:ต่ออายุ ' +
+  'subject:ทำรายการ subject:ใช้จ่าย' +
   '} -in:draft -in:sent newer_than:1y';   // กราฟรายเดือนจะได้ไม่กินช่วงหลายปี
 
 /** อัตราแลกเปลี่ยนคงที่ ใช้รวมยอดสองสกุลให้เทียบกันได้ — ไม่ได้ดึงเรตสด */
