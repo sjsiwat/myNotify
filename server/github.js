@@ -55,7 +55,7 @@ const Q = `{
                   messageHeadline
                   committedDate
                   url
-                  author { user { login } }
+                  author { name user { login } }
                 }
               }
             }
@@ -81,17 +81,21 @@ export async function overview(commitLimit = 20) {
     level: LEVEL[d.contributionLevel] ?? 0
   })));
 
-  // แบนคอมมิทจากทุก repo แล้วเก็บเฉพาะของเจ้าของ token
+  // แบนคอมมิทจากทุก repo — ไม่กรองตามผู้เขียน จะได้เห็นงานที่ทำร่วมกับคนอื่นด้วย
   const commits = (viewer.repositories.nodes || [])
     .flatMap(r => (r.defaultBranchRef?.target?.history?.nodes || [])
-      .filter(c => c.author?.user?.login === viewer.login)
-      .map(c => ({
-        repo: r.nameWithOwner,
-        sha: c.oid.slice(0, 7),
-        msg: c.messageHeadline,
-        date: c.committedDate,
-        url: c.url
-      })))
+      .map(c => {
+        const login = c.author?.user?.login || null;
+        return {
+          repo: r.nameWithOwner,
+          author: login || c.author?.name || 'ไม่ทราบ',
+          mine: login === viewer.login,
+          sha: c.oid.slice(0, 7),
+          msg: c.messageHeadline,
+          date: c.committedDate,
+          url: c.url
+        };
+      }))
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, commitLimit);
 

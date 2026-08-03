@@ -40,7 +40,7 @@ myDashboard/
 
 **Slack** — DM ที่ถึงคุณ (จัดกลุ่มตามคนส่ง) และความเคลื่อนไหวในช่องที่คุณอยู่ 7 วันล่าสุด (จัดกลุ่มตามช่อง) แต่ละกลุ่มเรียงตามความคึกคัก โชว์ข้อความล่าสุดไม่กี่อันแล้วกางเพิ่มได้ สีหัวกลุ่มตรงกับสีในกราฟ
 
-**GitHub** — ปฏิทิน contribution ย้อนหลัง 1 ปีแบบเดียวกับหน้าโปรไฟล์ GitHub และคอมมิทล่าสุดจาก repo ที่ push ล่าสุด
+**GitHub** — ปฏิทิน contribution ย้อนหลัง 1 ปีแบบเดียวกับหน้าโปรไฟล์ GitHub และคอมมิทล่าสุดจาก repo ที่ push ล่าสุด **รวมคอมมิทของคนอื่นในโปรเจกต์ที่ทำร่วมกัน** แต่ละแถวบอกว่าใครเขียน คอมมิทของเจ้าของ token จะมีป้าย "คุณ" กำกับ
 
 **เชื่อมต่ออื่น ๆ** — สถานะการเชื่อมต่อจริง (`/api/status`) และปุ่มเชื่อม/ยกเลิก Gmail
 
@@ -74,7 +74,7 @@ express ใน `server/` เรียก Gmail API และ Slack Web API ต�
 | `GET /api/mail/inbox` | `[{name, domain, subject, date, unread, isLinkedIn}]` |
 | `GET /api/spend` | `{bills: [{name, domain, subject, date, cur, val}], scanned}` |
 | `GET /api/slack` | `{dms: [], feed: []}` — แต่ละตัว `{chan, isDm, author, text, ts}` |
-| `GET /api/github` | `{login, total, weeks, commits}` — weeks คือปฏิทิน contribution |
+| `GET /api/github` | `{login, total, weeks, commits}` — `weeks` คือปฏิทิน, `commits[].mine` บอกว่าเป็นคอมมิทของเจ้าของ token ไหม |
 | `GET /auth/google` | redirect ไปหน้า consent |
 | `GET /auth/google/callback` | แลก code เก็บลง `token.json` |
 | `POST /auth/google/logout` | ลบ `token.json` |
