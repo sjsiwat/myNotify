@@ -93,6 +93,32 @@ tbody tr:hover{background:var(--surface-2)}
   background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);white-space:nowrap}
 .tag.unread{background:#eef4fb;border-color:#d3e2f2;color:var(--blue)}
 
+/* ---- ข้อความ Slack จัดเป็นกลุ่มตามช่อง / ตามคนส่ง ---- */
+.grp{border-bottom:1px solid var(--line)}
+.grp:last-child{border-bottom:0}
+.grp-h{display:flex;align-items:center;gap:8px;padding:9px 16px;background:var(--surface-2);
+  border-bottom:1px solid var(--line-soft)}
+.grp-h b{font-size:12.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gdot{width:8px;height:8px;border-radius:50%;flex:none}
+.grp-h .cnt{font-size:11px;font-weight:600;color:var(--ink-3);background:var(--surface);
+  border:1px solid var(--line);border-radius:999px;padding:0 7px;flex:none;font-variant-numeric:tabular-nums}
+.grp-h .last{margin-left:auto;font-size:11.5px;color:var(--ink-3);white-space:nowrap;flex:none}
+.gm{display:flex;gap:12px;align-items:baseline;padding:9px 16px;border-bottom:1px solid var(--line-soft);font-size:12.5px}
+.gm:last-of-type{border-bottom:0}
+.gm.hid{display:none}
+.gm-a{width:32%;max-width:200px;flex:none;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gm-t{flex:1;min-width:0;color:var(--ink-2);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.gm-w{flex:none;color:var(--ink-3);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.grp-more{display:block;width:100%;appearance:none;background:none;border:0;border-top:1px solid var(--line-soft);
+  padding:8px 16px;font:inherit;font-size:11.5px;font-weight:600;color:var(--accent);cursor:pointer;text-align:left}
+.grp-more:hover{background:var(--surface-2)}
+@media (max-width:560px){
+  .gm{flex-wrap:wrap;gap:2px 10px}
+  .gm-a{width:auto;max-width:none}
+  .gm-t{flex-basis:100%;-webkit-line-clamp:3}
+}
+
 .big{padding:16px;display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--line-soft)}
 .big .n{font-size:31px;font-weight:660;letter-spacing:-.03em;line-height:1}
 .big .s{font-size:12.5px;color:var(--ink-3)}
@@ -582,11 +608,51 @@ function drawSpendChart() {
 }
 
 /* ================= slack ================= */
-const msgRows = list => `<table><tbody>${list.map(x => `<tr>
-  <td style="width:30%"><div class="from">${esc(x.author)}</div>
-    <div style="margin-top:3px"><span class="tag">${x.isDm ? 'DM' : '#' + esc(x.chan)}</span></div></td>
-  <td><div class="subj">${esc(x.text)}</div></td>
-  <td class="when" style="width:16%">${relTime(x.ts)}</td></tr>`).join('')}</tbody></table>`;
+/* จัดข้อความเป็นกลุ่ม (ตามช่อง หรือตามคนส่ง) เรียงกลุ่มตามความคึกคัก
+   ในกลุ่มเรียงใหม่สุดก่อน โชว์ `limit` แรก ที่เหลือซ่อนไว้ใต้ปุ่ม */
+function groupHtml(list, { key, label, color, limit = 6 }) {
+  const by = new Map();
+  list.forEach(x => {
+    const k = key(x);
+    if (!by.has(k)) by.set(k, []);
+    by.get(k).push(x);
+  });
+
+  return [...by.entries()]
+    .map(([k, items]) => ({ k, items: items.sort((a, b) => new Date(b.ts) - new Date(a.ts)) }))
+    .sort((a, b) => b.items.length - a.items.length || new Date(b.items[0].ts) - new Date(a.items[0].ts))
+    .map((g, gi) => {
+      const rows = g.items.map((x, i) => `
+        <div class="gm${i >= limit ? ' hid' : ''}">
+          <span class="gm-a">${esc(x.author)}</span>
+          <span class="gm-t">${esc(x.text)}</span>
+          <span class="gm-w">${relTime(x.ts)}</span>
+        </div>`).join('');
+      const rest = g.items.length - limit;
+      return `<div class="grp">
+        <div class="grp-h">
+          <span class="gdot" style="background:${color(g.k, gi)}"></span>
+          <b>${esc(label(g.k))}</b>
+          <span class="cnt">${g.items.length}</span>
+          <span class="last">ล่าสุด ${relTime(g.items[0].ts)}ที่แล้ว</span>
+        </div>
+        ${rows}
+        ${rest > 0 ? `<button class="grp-more">ดูอีก ${rest} ข้อความ</button>` : ''}
+      </div>`;
+    }).join('');
+}
+
+/** วาดกลุ่มลง container แล้วผูกปุ่ม "ดูอีก…" ให้กางเฉพาะกลุ่มตัวเอง */
+function paintGroups(sel, list, opts, emptyMsg) {
+  const el = $(sel);
+  el.innerHTML = list.length ? groupHtml(list, opts) : `<div class="empty">${esc(emptyMsg)}</div>`;
+  el.querySelectorAll('.grp-more').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.closest('.grp').querySelectorAll('.gm.hid').forEach(r => r.classList.remove('hid'));
+      btn.remove();
+    });
+  });
+}
 
 async function loadSlack() {
   const { dms = [], feed = [] } = await src.slack();
@@ -610,8 +676,13 @@ async function loadSlack() {
     <div class="kpi"><div class="lab">ช่องที่คึกคัก</div><div class="val">${top.length}</div>
       <div class="note">${top.length ? '#' + esc(top[0][0]) + ' มากสุด' : '—'}</div></div>`;
 
-  $('#slackDmWrap').innerHTML = dms.length ? msgRows(dms) : '<div class="empty">ไม่มีข้อความถึงคุณ</div>';
-  $('#slackFeedWrap').innerHTML = feed.length ? msgRows(feed.slice(0, 15)) : '<div class="empty">ไม่มีความเคลื่อนไหวใน 7 วันที่ผ่านมา</div>';
+  // DM แยกตามคนส่ง ส่วน feed แยกตามช่อง — สีจุดของช่องตรงกับสีในกราฟด้านบน
+  paintGroups('#slackDmWrap', dms,
+    { key: x => x.author, label: k => k, color: k => hue(k), limit: 4 },
+    'ไม่มีข้อความถึงคุณ');
+  paintGroups('#slackFeedWrap', feed.filter(x => !x.isDm),
+    { key: x => x.chan, label: k => '#' + k, color: (_, i) => PAL[i % PAL.length], limit: 6 },
+    'ไม่มีความเคลื่อนไหวใน 7 วันที่ผ่านมา');
 
   drawOvSlack(); drawSlackChart();
 }
