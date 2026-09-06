@@ -18,7 +18,7 @@ node -v
 
 ---
 
-## 1. Google Cloud Console — เปิดสิทธิ์อ่าน Gmail
+## 1. Google Cloud Console — เปิดสิทธิ์ Gmail + ปฏิทิน
 
 ไปที่ https://console.cloud.google.com
 
@@ -29,7 +29,7 @@ node -v
 | ขั้นตอน | ถ้ามี project ที่ต่อ Gmail อยู่แล้ว |
 |---|---|
 | 1.1 สร้าง project | ข้าม |
-| 1.2 เปิด Gmail API | เปิดอยู่แล้ว — เช็คว่าปุ่มขึ้น "Manage" ไม่ใช่ "Enable" |
+| 1.2 เปิด Gmail API + Calendar API | Gmail เปิดอยู่แล้ว — เช็คว่าปุ่มขึ้น "Manage" ไม่ใช่ "Enable" ส่วน **Google Calendar API ต้องเปิดเพิ่ม** |
 | 1.3 consent screen | ตั้งแล้ว เช็ค 2 อย่างข้างล่าง |
 | 1.4 สร้าง OAuth client ID | **ต้องทำใหม่** |
 
@@ -47,7 +47,9 @@ node -v
 
 2. **User Type ต้องเป็น External** — ถ้าเป็น Internal แปลว่า project อยู่ใต้ Workspace org ใช้กับบัญชี `@gmail.com` ไม่ได้ กรณีนี้ต้องสร้าง project ใหม่จริง
 
-**เรื่อง scope ไม่ต้องห่วง** — แอปเดิมอาจขอ `gmail.modify` หรือ full ส่วน dashboard นี้ขอแค่ `gmail.readonly` ขอกันคนละครั้ง เก็บ token คนละที่ (`token.json` ของโปรเจกต์นี้เท่านั้น) ไม่ชนกัน
+**เรื่อง scope ไม่ต้องห่วง** — แอปเดิมอาจขอ `gmail.modify` หรือ full ส่วน dashboard นี้ขอแค่ `gmail.readonly` + `calendar.events` + `calendar.readonly` ขอกันคนละครั้ง เก็บ token คนละที่ (`token.json` ของโปรเจกต์นี้เท่านั้น) ไม่ชนกัน
+
+⚠️ **`calendar.events` เป็น sensitive scope** — ตอนกด Allow จะมีหน้าถามสิทธิ์ "ดูและแก้ไขกิจกรรมในปฏิทิน" เพิ่มมาอีกหน้า ใช้กับบัญชีตัวเองในสถานะ Testing ได้เลย ไม่ต้องส่ง verify
 
 ### 1.1 สร้าง project
 
@@ -55,9 +57,13 @@ node -v
 
 รอสักครู่แล้วสลับไปใช้ project ที่เพิ่งสร้าง
 
-### 1.2 เปิด Gmail API
+### 1.2 เปิด Gmail API + Google Calendar API
 
 **APIs & Services → Library** → ค้นหา `Gmail API` → กด **Enable**
+
+แล้วกลับมาที่ Library อีกรอบ → ค้นหา `Google Calendar API` → กด **Enable**
+
+ถ้าลืมเปิดตัวหลัง แท็บปฏิทินจะขึ้น error ทำนอง `Google Calendar API has not been used in project … before or it is disabled`
 
 ### 1.3 ตั้ง OAuth consent screen
 
@@ -165,6 +171,20 @@ settings:
 >
 > token ตัวนี้อ่านได้ทุกอย่างที่บัญชีคุณอ่านได้ รวม DM — อย่าเอาไป commit หรือแปะที่ไหน
 
+### 2.4 อยากต่อมากกว่า 1 workspace
+
+Slack user token ผูกกับ workspace เดียวเท่านั้น ข้ามไม่ได้ — ถ้ามีหลายที่ทำงาน (เช่นของบริษัทกับของทีมข้างนอก) ต้องทำซ้ำขั้นตอน 2.1–2.3 **แยกในแต่ละ workspace** จะได้ token คนละตัว
+
+ใส่ทุกตัวในตัวแปรเดียว `SLACK_USER_TOKENS` คั่นด้วย comma แทนที่จะใช้ `SLACK_USER_TOKEN`:
+
+```
+SLACK_USER_TOKENS=xoxp-workspace1-xxxxx,xoxp-workspace2-xxxxx
+```
+
+แดชบอร์ดจะดึงจากทุก workspace มารวมกัน และเติมชื่อ workspace นำหน้าชื่อช่องให้อัตโนมัติ (เช่น `po-develope/new-channel`) กันชื่อช่องซ้ำกันข้าม workspace
+
+> การเติมชื่อ workspace ต้องมี scope เพิ่ม **`team:read`** ใน User Token Scopes ของแต่ละแอป — ถ้าไม่ใส่ก็ยังใช้ได้ปกติ แค่ไม่มีชื่อ workspace กำกับ
+
 ---
 
 ## 2.5 GitHub — สร้าง personal access token
@@ -185,6 +205,34 @@ settings:
 
 ---
 
+## 2.75 Discord — สร้างบอทเพื่อดึงข้อความห้อง
+
+Discord ไม่มี "user token" แบบเป็นทางการเหมือน Slack — ต้องใช้ **bot** ซึ่งเป็นบัญชีแยกจากคุณ จึงดึงได้แค่ข้อความในห้องที่เชิญบอทเข้าไป **อ่าน DM ส่วนตัวของคุณไม่ได้**
+
+1. ไปที่ https://discord.com/developers/applications → **New Application** ตั้งชื่ออะไรก็ได้ เช่น `myDashboard`
+2. แท็บ **Bot** (ซ้ายมือ) → กด **Reset Token** คัดลอกค่าที่ได้ไว้ (ขึ้นต้นประมาณ `MTI...`)
+3. เลื่อนลงไปที่ **Privileged Gateway Intents** → เปิด **MESSAGE CONTENT INTENT** แล้ว Save — ไม่เปิดจะได้ข้อความเป็นค่าว่างเปล่าทุกอัน
+4. แท็บ **OAuth2 → URL Generator** → ติ๊ก scope **`bot`** แล้วติ๊ก permission **View Channel** และ **Read Message History**
+5. คัดลอกลิงก์ที่ generate ได้ เปิดในเบราว์เซอร์ เลือกเซิร์ฟเวอร์ที่จะเชิญบอทเข้าไป
+6. เปิด **Developer Mode** ใน Discord (User Settings → Advanced → Developer Mode) แล้วคลิกขวาห้องที่อยากดึง → **Copy Channel ID** ทำแบบนี้กับทุกห้องที่ต้องการ
+
+> ถ้าไม่มี Discord ที่อยากดึง ข้ามขั้นตอนนี้ไปได้เลย — แท็บ Discord จะขึ้นข้อความบอกว่ายังไม่ได้ตั้งค่า
+
+---
+
+## 2.85 LINE — ส่งสรุปประจำวันเข้าแชทตัวเอง
+
+ฟีเจอร์นี้ไม่ใช่การ "เชื่อมต่อ" แบบอื่น ๆ แต่เป็นปุ่มกด **"ส่งสรุปเข้า LINE ตอนนี้"** ในแท็บ "เชื่อมต่ออื่น ๆ" — กดแล้วรวมข้อมูล Inbox / นัดวันนี้ / Slack ที่ถึงคุณ เป็นข้อความสั้น ๆ ส่งเข้า LINE ของตัวเอง
+
+1. ไปที่ https://developers.line.biz/console/ → เลือก Provider → เลือก Channel ประเภท **Messaging API**
+   (ถ้ามีบอท LINE อยู่แล้วจากโปรเจกต์อื่น ใช้ channel เดิมได้เลย ไม่ต้องสร้างใหม่)
+2. แท็บ **Basic settings** → เลื่อนหา **Channel access token** → กด **Issue** (หรือคัดลอกอันที่ออกไว้แล้ว)
+3. แท็บเดียวกัน เลื่อนหา **"Your user ID"** — ถ้าคุณใช้บัญชี LINE ส่วนตัวล็อกอินเข้า console อันนี้คือ User ID ของคุณเอง (คนละอันกับ User ID ของบอท)
+
+> ถ้าไม่อยากใช้ฟีเจอร์นี้ ข้ามได้เลย — ปุ่มจะไม่โผล่ถ้ายังไม่ได้ตั้งค่า
+
+---
+
 ## 3. ใส่ค่าลง `.env`
 
 ```bash
@@ -200,7 +248,10 @@ GOOGLE_CLIENT_SECRET=GOCSPX-xxxxx
 GOOGLE_REDIRECT_URI=http://localhost:3000/auth/google/callback
 SLACK_USER_TOKEN=xoxp-xxxxx
 GITHUB_TOKEN=ghp_xxxxx
-THB_PER_USD=36
+DISCORD_BOT_TOKEN=MTIzxxxxx
+DISCORD_CHANNEL_IDS=123456789012345678,987654321098765432
+LINE_CHANNEL_ACCESS_TOKEN=xxxxx
+LINE_USER_ID=Uxxxxx
 PORT=3000
 HOST=127.0.0.1
 ```
@@ -228,7 +279,7 @@ npm start
 
 ### ครั้งแรก
 
-แท็บกล่องจดหมาย/รายจ่ายจะขึ้นปุ่ม **เชื่อม Gmail** — กด แล้วเลือกบัญชี
+แท็บกล่องจดหมายจะขึ้นปุ่ม **เชื่อม Gmail** — กด แล้วเลือกบัญชี
 
 - เจอหน้า **"Google hasn't verified this app"** → กด **Advanced → Go to myDashboard (unsafe)** — ปกติ เพราะแอปอยู่สถานะ Testing และเป็นแอปของคุณเอง
 - กด Continue ให้สิทธิ์อ่าน Gmail
@@ -244,7 +295,7 @@ Slack ไม่ต้องกดอะไร ใช้ token จาก `.env` �
 curl -s localhost:3000/api/status
 ```
 
-ควรได้ `{"gmail":true,"slack":true,"github":true}`
+ควรได้ `{"gmail":true,"calendar":true,"slack":true,"github":true,"discord":true,"line":true}`
 
 ```bash
 curl -s localhost:3000/api/mail/summary | head -c 300
@@ -264,6 +315,14 @@ curl -s localhost:3000/api/slack | head -c 300
 | `invalid_auth` | token ผิดหรือหมดอายุ / เผลอใช้ Bot token (`xoxb-`) แทน user token (`xoxp-`) |
 | `GITHUB_TOKEN ใช้ไม่ได้` | token หมดอายุหรือคัดลอกไม่ครบ — สร้างใหม่ที่ github.com/settings/tokens |
 | แท็บ GitHub ว่าง ทั้งที่มี token | token ไม่มี scope `read:user` — แก้ scope ของ token เดิมได้เลย ไม่ต้องสร้างใหม่ |
+| แท็บปฏิทินขึ้น "token เดิมออกก่อนมีแท็บปฏิทิน" | token.json ที่มีอยู่ออกตอนที่ยังขอแค่ scope Gmail — กด **ให้สิทธิ์ปฏิทิน** ในแท็บนั้น (หรือ "เชื่อมต่ออื่น ๆ") แล้วกด Allow ใหม่ครั้งเดียว ไม่ต้องลบ token.json เอง |
+| ปฏิทินบางอันไม่โผล่ | แดชบอร์ดดึงเฉพาะปฏิทินที่ **ติ๊กเปิดแสดง** อยู่ใน Google Calendar — ไปติ๊กเปิดในเว็บ Google Calendar ก่อน แล้วรอ cache รายชื่อปฏิทินหมดอายุ (10 นาที) หรือรีสตาร์ต server |
+| นัดขึ้นผิดเวลาไป 7 ชม. | `CALENDAR_TZ` ใน `.env` ไม่ตรงกับโซนที่ใช้จริง — ตั้งให้ตรงแล้วรีสตาร์ต |
+| กด "บันทึก" แล้วขึ้น "ไม่มีสิทธิ์แก้นัด" | ปฏิทินนั้นแชร์มาแบบอ่านอย่างเดียว (เช่น ปฏิทินวันหยุด) — แก้ได้เฉพาะปฏิทินที่คุณเป็นเจ้าของหรือมีสิทธิ์เขียน |
 | Gmail หลุดสิทธิ์ทุก 7 วัน | OAuth consent screen สถานะ Testing → refresh token หมดอายุ 7 วัน กด **Publish app** ถ้าอยากใช้ยาว ๆ (จะขึ้นเตือน unverified แต่ยังใช้ได้) |
 | `/api/slack` ช้ามาก | ยิง `conversations.history` ทีละห้อง จำกัดไว้ 25 ห้อง — ผลลัพธ์ cache 60 วินาที โหลดรอบสองจะเร็ว |
 | อยากล้างการเชื่อม Gmail | แท็บ "เชื่อมต่ออื่น ๆ" → ปุ่ม **ยกเลิกการเชื่อม** (ลบ `token.json`) |
+| แท็บ Discord ขึ้นข้อความว่าง ๆ ทั้งที่มี token | ลืมเปิด **MESSAGE CONTENT INTENT** ในแท็บ Bot ของ Discord Developer Portal — เนื้อความข้อความจะว่างเปล่าถ้าไม่เปิด |
+| `/api/discord` error `403`/`50001 Missing Access` | บอทยังไม่ได้ถูกเชิญเข้าห้องนั้น หรือ `DISCORD_CHANNEL_IDS` ใส่ id ผิด — เชิญบอทผ่านลิงก์ OAuth2 ใหม่แล้วเช็ก id อีกครั้ง |
+| กดส่งสรุปเข้า LINE แล้ว error `line push: 401` | `LINE_CHANNEL_ACCESS_TOKEN` ผิดหรือหมดอายุ — ไปออก token ใหม่ที่ LINE Developers Console |
+| กดส่งสรุปเข้า LINE แล้ว error `line push: 400` | `LINE_USER_ID` ผิดรูปแบบหรือไม่ตรงบัญชี — เช็ก "Your user ID" ใน Basic settings อีกครั้ง (ต้องขึ้นต้นด้วย `U`) |

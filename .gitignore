@@ -1,4 +1,4 @@
-# ---- ความลับ ห้ามขึ้น git เด็ดขาด ----
+# ---- ห้ามขึ้น git เด็ดขาด ----
 .env
 .env.*
 !.env.example
@@ -13,6 +13,7 @@ daily-email-triage.md
 
 # ---- ขยะ ----
 node_modules/
+.claude
 .claude/settings.local.json
 *.log
 .DS_Store
