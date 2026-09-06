@@ -1,128 +1,128 @@
 # SETUP — myDashboard
 
-ขั้นตอนเซ็ตอัปทีละขั้น สำหรับรันบนเครื่องตัวเอง
+Step-by-step setup for running this on your own machine.
 
-ใช้เวลาประมาณ 15–20 นาที ส่วนใหญ่หมดไปกับหน้าเว็บของ Google กับ Slack
+Takes about 15–20 minutes, most of it spent clicking around Google and Slack's websites.
 
 ---
 
-## 0. เตรียมเครื่อง
+## 0. Before you start
 
-ต้องมี Node.js เวอร์ชัน 20 ขึ้นไป
+You need Node.js version 20 or newer.
 
 ```bash
 node -v
 ```
 
-ถ้าต่ำกว่านั้นให้อัปเดตก่อน (`brew install node` หรือ nvm)
+If it's older than that, update first (`brew install node` or nvm).
 
 ---
 
-## 1. Google Cloud Console — เปิดสิทธิ์ Gmail + ปฏิทิน
+## 1. Google Cloud Console — turn on Gmail + Calendar access
 
-ไปที่ https://console.cloud.google.com
+Go to https://console.cloud.google.com
 
-### มี project อยู่แล้วใช่ไหม (เช่นที่ทำไว้ให้ n8n)
+### Already have a Google Cloud project from something else?
 
-ใช้ project เดิมได้ ไม่ต้องสร้างใหม่ — **ข้าม 1.1 ไปได้เลย** ส่วน 1.2 กับ 1.3 แค่เข้าไปเช็คว่าตั้งไว้แล้ว
+You can reuse it — no need to create a new one. **Skip 1.1 entirely.** For 1.2 and 1.3, just check they're already set up the way you need.
 
-| ขั้นตอน | ถ้ามี project ที่ต่อ Gmail อยู่แล้ว |
+| Step | If you already have a project connected to Gmail |
 |---|---|
-| 1.1 สร้าง project | ข้าม |
-| 1.2 เปิด Gmail API + Calendar API | Gmail เปิดอยู่แล้ว — เช็คว่าปุ่มขึ้น "Manage" ไม่ใช่ "Enable" ส่วน **Google Calendar API ต้องเปิดเพิ่ม** |
-| 1.3 consent screen | ตั้งแล้ว เช็ค 2 อย่างข้างล่าง |
-| 1.4 สร้าง OAuth client ID | **ต้องทำใหม่** |
+| 1.1 Create a project | Skip |
+| 1.2 Enable Gmail API + Calendar API | Gmail's probably already on — check the button says "Manage", not "Enable". **Google Calendar API still needs turning on separately** |
+| 1.3 Consent screen | Already set up, just check the 2 things below |
+| 1.4 Create an OAuth client ID | **Do this one fresh, don't skip it** |
 
-**ต้องสร้าง OAuth client ตัวใหม่ อย่าไปแก้ของเดิม** — client เดิมผูกกับ redirect URI ของแอปนั้น (n8n ใช้ `https://…/rest/oauth2-credential/callback`) ส่วนเราต้องการ `http://localhost:3000/auth/google/callback`
+**Make a brand new OAuth client — don't edit your existing one.** Your old client is tied to that other app's redirect URI, and this one needs its own: `http://localhost:3000/auth/google/callback`.
 
-เพิ่ม URI ที่สองเข้าไปใน client เดิมก็ทำได้ แต่ไม่ควร — วันไหนเพิกถอนหรือหมุน secret ฝั่งหนึ่ง อีกฝั่งพังตาม แยก client ไปเลยสะอาดกว่าและไม่กระทบของเดิม
+You *could* add a second redirect URI to your existing client instead, but don't — if you ever revoke or rotate one side's secret, the other breaks too. Keeping them separate is cleaner and won't touch anything that's already working.
 
-**เช็ค 2 อย่างในหน้า OAuth consent screen**
+**Two things to check on the OAuth consent screen**
 
 1. **Publishing status**
-   - *Testing* → ต้องมีอีเมลตัวเองใน Test users และ refresh token จะหมดอายุทุก 7 วัน
-   - *In production* → ดีกว่า token ไม่หมดอายุ 7 วัน แค่เจอหน้าเตือน unverified ตอน authorize (กด Advanced ผ่านได้)
+   - *Testing* → you'll need to add your own email under Test users, and the refresh token expires every 7 days
+   - *In production* → better, since the token doesn't expire every 7 days. You'll just see an "unverified" warning when authorizing (click Advanced to get past it)
 
-   ⚠️ อย่าสลับ status เพื่อโปรเจกต์นี้อย่างเดียว — consent screen ใช้ร่วมกันทั้ง project มีผลกับแอปเดิมด้วย
+   ⚠️ Don't flip this status just for this project — the consent screen is shared across the whole Google Cloud project, so it affects your other app too.
 
-2. **User Type ต้องเป็น External** — ถ้าเป็น Internal แปลว่า project อยู่ใต้ Workspace org ใช้กับบัญชี `@gmail.com` ไม่ได้ กรณีนี้ต้องสร้าง project ใหม่จริง
+2. **User Type has to be External** — if it's Internal, that means the project sits under a Workspace org and won't work with a regular `@gmail.com` account. In that case you really do need a new project.
 
-**เรื่อง scope ไม่ต้องห่วง** — แอปเดิมอาจขอ `gmail.modify` หรือ full ส่วน dashboard นี้ขอแค่ `gmail.readonly` + `calendar.events` + `calendar.readonly` ขอกันคนละครั้ง เก็บ token คนละที่ (`token.json` ของโปรเจกต์นี้เท่านั้น) ไม่ชนกัน
+**Don't worry about scopes clashing** — your other app might ask for `gmail.modify` or full access, while this dashboard only asks for `gmail.readonly` + `calendar.events` + `calendar.readonly`. They're requested separately and stored in a separate place (this project's own `token.json`), so nothing collides.
 
-⚠️ **`calendar.events` เป็น sensitive scope** — ตอนกด Allow จะมีหน้าถามสิทธิ์ "ดูและแก้ไขกิจกรรมในปฏิทิน" เพิ่มมาอีกหน้า ใช้กับบัญชีตัวเองในสถานะ Testing ได้เลย ไม่ต้องส่ง verify
+⚠️ **`calendar.events` is a "sensitive" scope** — when you click Allow, there's an extra screen asking for permission to "view and edit events on your calendar." Totally fine to use on your own account while still in Testing — no need to submit for verification.
 
-### 1.1 สร้าง project
+### 1.1 Create a project
 
-มุมซ้ายบนกดชื่อ project → **New Project** → ตั้งชื่ออะไรก็ได้ เช่น `myDashboard` → Create
+Top-left corner, click the project name → **New Project** → name it anything, like `myDashboard` → Create.
 
-รอสักครู่แล้วสลับไปใช้ project ที่เพิ่งสร้าง
+Wait a moment, then switch to the project you just made.
 
-### 1.2 เปิด Gmail API + Google Calendar API
+### 1.2 Turn on Gmail API + Google Calendar API
 
-**APIs & Services → Library** → ค้นหา `Gmail API` → กด **Enable**
+**APIs & Services → Library** → search `Gmail API` → click **Enable**.
 
-แล้วกลับมาที่ Library อีกรอบ → ค้นหา `Google Calendar API` → กด **Enable**
+Then go back to Library → search `Google Calendar API` → click **Enable**.
 
-ถ้าลืมเปิดตัวหลัง แท็บปฏิทินจะขึ้น error ทำนอง `Google Calendar API has not been used in project … before or it is disabled`
+Forget the second one and the Calendar tab will show an error like `Google Calendar API has not been used in project … before or it is disabled`.
 
-### 1.3 ตั้ง OAuth consent screen
+### 1.3 Set up the OAuth consent screen
 
-> **Console มีสอง UI** — ถ้าเมนูซ้ายขึ้นว่า *Google Auth Platform* (Overview / Branding / Audience / Clients / Data Access) แปลว่าเป็น UI ใหม่ เนื้อหาเดียวกันแต่แยกหน้า:
+> **There are two different Console UIs floating around** — if the left menu shows *Google Auth Platform* (Overview / Branding / Audience / Clients / Data Access), that's the newer one. Same stuff, different page names:
 >
-> | ของเดิม | UI ใหม่ |
+> | Old name | New name |
 > |---|---|
-> | OAuth consent screen | **Branding** (ชื่อแอป, อีเมล) |
+> | OAuth consent screen | **Branding** (app name, email) |
 > | Publishing status + Test users | **Audience** |
 > | Credentials → OAuth client IDs | **Clients** |
 
-**APIs & Services → OAuth consent screen** (หรือ **Branding** ใน UI ใหม่)
+**APIs & Services → OAuth consent screen** (or **Branding** on the new UI)
 
-| ช่อง | ใส่อะไร |
+| Field | What to put |
 |---|---|
 | User Type | **External** |
 | App name | `myDashboard` |
-| User support email | อีเมลของคุณ |
-| Developer contact | อีเมลของคุณ |
+| User support email | your email |
+| Developer contact | your email |
 
-หน้า **Audience**
+On the **Audience** page
 
-- **Publishing status ปล่อยไว้เป็น Testing** — ไม่ต้องส่ง verify แลกกับ refresh token หมดอายุทุก 7 วัน
-- **Test users → + Add users** → ใส่อีเมลที่จะใช้เปิดแดชบอร์ด (บัญชี Gmail ที่อยากดู)
+- **Leave Publishing status as Testing** — no need to submit for verification, the trade-off is the refresh token expires every 7 days
+- **Test users → + Add users** → add the email you'll use to open the dashboard (the Gmail account you actually want to see)
 
-  > ข้อนี้สำคัญ ถ้าไม่ใส่ Google จะปฏิเสธตอน authorize ด้วย `access_denied`
+  > Don't skip this one — Google will reject you with `access_denied` during authorization if you do
 
-- **อย่าไปยุ่งกับหน้า Data Access** — ตอนอยู่สถานะ Testing โค้ดขอ scope เองตอน redirect ได้เลย ไปเพิ่ม restricted scope เองอาจทำให้ project ขึ้นสถานะรอ verify โดยไม่จำเป็น
+- **Leave the Data Access page alone** — while in Testing, the code can request scopes directly at redirect time. Manually adding restricted scopes there can push the project into needing verification for no reason.
 
-### 1.4 สร้าง OAuth client ID
+### 1.4 Create an OAuth client ID
 
 **APIs & Services → Credentials → + CREATE CREDENTIALS → OAuth client ID**
 
-(UI ใหม่: **Clients → + Create client**)
+(New UI: **Clients → + Create client**)
 
-| ช่อง | ใส่อะไร |
+| Field | What to put |
 |---|---|
 | Application type | **Web application** |
 | Name | `myDashboard local` |
 | Authorized redirect URIs | `http://localhost:3000/auth/google/callback` |
 
-กด Create → จะมี popup โชว์ **Client ID** กับ **Client secret** — เปิดค้างไว้ เดี๋ยวเอาไปใส่ `.env`
+Click Create → a popup shows your **Client ID** and **Client secret** — keep it open, you'll paste these into `.env` in a bit.
 
-> ถ้าปิด popup ไปแล้ว กลับเข้าไปที่ client แล้วกดดาวน์โหลด JSON ก็ได้
+> Closed the popup already? Go back into the client and download the JSON instead.
 
 ---
 
-## 2. Slack — สร้างแอปเพื่อขอ user token
+## 2. Slack — create an app to get a user token
 
-ไปที่ https://api.slack.com/apps
+Go to https://api.slack.com/apps
 
-### 2.1 สร้างแอป — ทางลัดด้วย manifest
+### 2.1 Create the app — shortcut using a manifest
 
-**Create New App → From a manifest** → เลือก workspace ของคุณ → แท็บ **YAML** → ลบของเดิมแล้ววาง
+**Create New App → From a manifest** → pick your workspace → **YAML** tab → delete what's there and paste this:
 
 ```yaml
 display_information:
   name: myDashboard
-  description: อ่าน DM และความเคลื่อนไหวในช่องมาแสดงบนแดชบอร์ดส่วนตัว
+  description: Reads DMs and channel activity into a personal dashboard
 oauth_config:
   scopes:
     user:
@@ -139,108 +139,108 @@ settings:
   token_rotation_enabled: false
 ```
 
-→ Next → Create — ได้ scope ครบอยู่ใต้ `user` เลย **ข้ามข้อ 2.2 ไปได้**
+→ Next → Create — this gives you all the scopes under `user` already. **You can skip step 2.2.**
 
-`token_rotation_enabled: false` สำคัญ — ถ้าเปิด rotation token `xoxp-` จะหมดอายุทุก 12 ชั่วโมงและต้องเขียนโค้ดต่ออายุเอง ซึ่ง `server/slack.js` ไม่รองรับ
+`token_rotation_enabled: false` matters here — turn rotation on and your `xoxp-` token expires every 12 hours, needing code to refresh it, which `server/slack.js` doesn't have.
 
-> ปุ่ม **From scratch** แบบเดิมตอนนี้ชื่อ **Blank app** ถ้าอยากกดเลือก scope เองให้ใช้ตัวนั้นแล้วทำข้อ 2.2 ต่อ
+> The old **From scratch** button is now called **Blank app**. Use that one if you'd rather pick scopes yourself, then follow 2.2.
 
-### 2.2 ขอ scope (ถ้าไม่ได้ใช้ manifest)
+### 2.2 Requesting scopes manually (skip if you used the manifest)
 
-เมนูซ้าย **OAuth & Permissions** → เลื่อนลงหา **Scopes**
+Left menu **OAuth & Permissions** → scroll to **Scopes**.
 
-⚠️ ต้องใส่ในช่อง **User Token Scopes** ไม่ใช่ Bot Token Scopes — dashboard อ่านในนามบัญชีคุณ ไม่ใช่ในนามบอท
+⚠️ Add these under **User Token Scopes**, not Bot Token Scopes — the dashboard reads as you, not as a bot.
 
-| scope | ใช้ทำอะไร |
+| Scope | What it's for |
 |---|---|
-| `channels:read` | รายชื่อช่อง public |
-| `groups:read` | รายชื่อช่อง private |
-| `im:read` | รายชื่อห้อง DM |
-| `channels:history` | อ่านข้อความในช่อง public |
-| `groups:history` | อ่านข้อความในช่อง private |
-| `im:history` | อ่านข้อความ DM |
-| `users:read` | แปลง user ID เป็นชื่อคน |
+| `channels:read` | list of public channels |
+| `groups:read` | list of private channels |
+| `im:read` | list of your DMs |
+| `channels:history` | reading messages in public channels |
+| `groups:history` | reading messages in private channels |
+| `im:history` | reading DM messages |
+| `users:read` | turning user IDs into actual names |
 
-### 2.3 ติดตั้งลง workspace
+### 2.3 Install to your workspace
 
-เลื่อนขึ้นบนสุด → **Install to Workspace** → Allow
+Scroll to the top → **Install to Workspace** → Allow.
 
-ได้ **User OAuth Token** ขึ้นต้นด้วย `xoxp-…` — คัดลอกไว้
+You'll get a **User OAuth Token** starting with `xoxp-…` — copy it somewhere safe.
 
-> ถ้า workspace ตั้งค่าให้แอดมินต้องอนุมัติแอปก่อน จะเห็นข้อความว่ารออนุมัติ ต้องรอแอดมินกดก่อนถึงจะได้ token
+> If your workspace requires admin approval for apps, you'll see a pending message — you won't get the token until an admin approves it.
 >
-> token ตัวนี้อ่านได้ทุกอย่างที่บัญชีคุณอ่านได้ รวม DM — อย่าเอาไป commit หรือแปะที่ไหน
+> This token can read anything your account can read, DMs included — never commit it or paste it anywhere public.
 
-### 2.4 อยากต่อมากกว่า 1 workspace
+### 2.4 Connecting more than one workspace
 
-Slack user token ผูกกับ workspace เดียวเท่านั้น ข้ามไม่ได้ — ถ้ามีหลายที่ทำงาน (เช่นของบริษัทกับของทีมข้างนอก) ต้องทำซ้ำขั้นตอน 2.1–2.3 **แยกในแต่ละ workspace** จะได้ token คนละตัว
+A Slack user token only works for one workspace — no way around that. If you're part of multiple workspaces (say, your company's and an outside team's), repeat steps 2.1–2.3 **separately for each one** to get a token per workspace.
 
-ใส่ทุกตัวในตัวแปรเดียว `SLACK_USER_TOKENS` คั่นด้วย comma แทนที่จะใช้ `SLACK_USER_TOKEN`:
+Put all of them into one variable, `SLACK_USER_TOKENS`, separated by commas, instead of `SLACK_USER_TOKEN`:
 
 ```
 SLACK_USER_TOKENS=xoxp-workspace1-xxxxx,xoxp-workspace2-xxxxx
 ```
 
-แดชบอร์ดจะดึงจากทุก workspace มารวมกัน และเติมชื่อ workspace นำหน้าชื่อช่องให้อัตโนมัติ (เช่น `po-develope/new-channel`) กันชื่อช่องซ้ำกันข้าม workspace
+The dashboard pulls from every workspace and merges them, automatically prefixing channel names with the workspace name (like `po-develope/new-channel`) so channels with the same name across workspaces don't get mixed up.
 
-> การเติมชื่อ workspace ต้องมี scope เพิ่ม **`team:read`** ใน User Token Scopes ของแต่ละแอป — ถ้าไม่ใส่ก็ยังใช้ได้ปกติ แค่ไม่มีชื่อ workspace กำกับ
+> Prefixing workspace names needs one more scope — **`team:read`** — added to each app's User Token Scopes. Skip it and everything still works, just without the workspace name in front.
 
 ---
 
-## 2.5 GitHub — สร้าง personal access token
+## 2.5 GitHub — create a personal access token
 
-ไปที่ https://github.com/settings/tokens → **Tokens (classic)** → **Generate new token (classic)**
+Go to https://github.com/settings/tokens → **Tokens (classic)** → **Generate new token (classic)**
 
-| ช่อง | ใส่อะไร |
+| Field | What to put |
 |---|---|
 | Note | `myDashboard` |
-| Expiration | เลือกตามสะดวก (90 วัน หรือ No expiration) |
-| Scopes | ติ๊ก **`read:user`** — เพิ่ม **`repo`** ถ้าอยากเห็นคอมมิทใน private repo ด้วย |
+| Expiration | whatever you're comfortable with (90 days, or No expiration) |
+| Scopes | check **`read:user`** — also check **`repo`** if you want commits from private repos to show up too |
 
-กด **Generate token** → คัดลอกค่าที่ขึ้นต้นด้วย `ghp_` ทันที (ปิดหน้าไปแล้วดูซ้ำไม่ได้)
+Click **Generate token** → copy the value starting with `ghp_` right away (you can't view it again once you leave the page).
 
-> ใช้ **GraphQL API** เพราะ contribution calendar ไม่มี endpoint ใน REST เลย — ปฏิทินกับคอมมิทล่าสุดดึงมาในคิวรีเดียว
+> Uses the **GraphQL API** because the contribution calendar has no REST endpoint at all — the calendar and latest commits both come from a single query.
 >
-> `read:user` ให้สิทธิ์อ่านโปรไฟล์ ไม่ให้สิทธิ์แก้อะไร ส่วน `repo` ให้สิทธิ์อ่าน**และเขียน** private repo — แดชบอร์ดอ่านอย่างเดียว แต่ GitHub ไม่มี scope อ่านอย่างเดียวสำหรับ private repo ใน token แบบ classic ถ้าไม่สบายใจให้ข้าม `repo` ไป จะเห็นเฉพาะ public
+> `read:user` only lets it read your profile, nothing else. `repo` grants read **and write** access to private repos — the dashboard only ever reads, but classic GitHub tokens don't have a read-only option for private repos. Skip `repo` if that bothers you; you'll just only see public activity.
 
 ---
 
-## 2.75 Discord — สร้างบอทเพื่อดึงข้อความห้อง
+## 2.75 Discord — create a bot to pull channel messages
 
-Discord ไม่มี "user token" แบบเป็นทางการเหมือน Slack — ต้องใช้ **bot** ซึ่งเป็นบัญชีแยกจากคุณ จึงดึงได้แค่ข้อความในห้องที่เชิญบอทเข้าไป **อ่าน DM ส่วนตัวของคุณไม่ได้**
+Discord doesn't have an official "user token" like Slack does — you have to use a **bot**, which is a separate account from you, so it can only read messages in channels it's been invited to. **It can't read your personal DMs.**
 
-1. ไปที่ https://discord.com/developers/applications → **New Application** ตั้งชื่ออะไรก็ได้ เช่น `myDashboard`
-2. แท็บ **Bot** (ซ้ายมือ) → กด **Reset Token** คัดลอกค่าที่ได้ไว้ (ขึ้นต้นประมาณ `MTI...`)
-3. เลื่อนลงไปที่ **Privileged Gateway Intents** → เปิด **MESSAGE CONTENT INTENT** แล้ว Save — ไม่เปิดจะได้ข้อความเป็นค่าว่างเปล่าทุกอัน
-4. แท็บ **OAuth2 → URL Generator** → ติ๊ก scope **`bot`** แล้วติ๊ก permission **View Channel** และ **Read Message History**
-5. คัดลอกลิงก์ที่ generate ได้ เปิดในเบราว์เซอร์ เลือกเซิร์ฟเวอร์ที่จะเชิญบอทเข้าไป
-6. เปิด **Developer Mode** ใน Discord (User Settings → Advanced → Developer Mode) แล้วคลิกขวาห้องที่อยากดึง → **Copy Channel ID** ทำแบบนี้กับทุกห้องที่ต้องการ
+1. Go to https://discord.com/developers/applications → **New Application**, name it anything, like `myDashboard`
+2. **Bot** tab (left side) → click **Reset Token**, copy the value (starts with something like `MTI...`)
+3. Scroll down to **Privileged Gateway Intents** → turn on **MESSAGE CONTENT INTENT** and Save — skip this and every message comes through empty
+4. **OAuth2 → URL Generator** tab → check the **`bot`** scope, then check **View Channel** and **Read Message History** permissions
+5. Copy the generated link, open it in a browser, and pick the server you want to invite the bot to
+6. Turn on **Developer Mode** in Discord (User Settings → Advanced → Developer Mode), then right-click each channel you want → **Copy Channel ID**
 
-> ถ้าไม่มี Discord ที่อยากดึง ข้ามขั้นตอนนี้ไปได้เลย — แท็บ Discord จะขึ้นข้อความบอกว่ายังไม่ได้ตั้งค่า
-
----
-
-## 2.85 LINE — ส่งสรุปประจำวันเข้าแชทตัวเอง
-
-ฟีเจอร์นี้ไม่ใช่การ "เชื่อมต่อ" แบบอื่น ๆ แต่เป็นปุ่มกด **"ส่งสรุปเข้า LINE ตอนนี้"** ในแท็บ "เชื่อมต่ออื่น ๆ" — กดแล้วรวมข้อมูล Inbox / นัดวันนี้ / Slack ที่ถึงคุณ เป็นข้อความสั้น ๆ ส่งเข้า LINE ของตัวเอง
-
-1. ไปที่ https://developers.line.biz/console/ → เลือก Provider → เลือก Channel ประเภท **Messaging API**
-   (ถ้ามีบอท LINE อยู่แล้วจากโปรเจกต์อื่น ใช้ channel เดิมได้เลย ไม่ต้องสร้างใหม่)
-2. แท็บ **Basic settings** → เลื่อนหา **Channel access token** → กด **Issue** (หรือคัดลอกอันที่ออกไว้แล้ว)
-3. แท็บเดียวกัน เลื่อนหา **"Your user ID"** — ถ้าคุณใช้บัญชี LINE ส่วนตัวล็อกอินเข้า console อันนี้คือ User ID ของคุณเอง (คนละอันกับ User ID ของบอท)
-
-> ถ้าไม่อยากใช้ฟีเจอร์นี้ ข้ามได้เลย — ปุ่มจะไม่โผล่ถ้ายังไม่ได้ตั้งค่า
+> Don't have any Discord you want to pull from? Skip this whole section — the Discord tab will just say it's not set up yet.
 
 ---
 
-## 3. ใส่ค่าลง `.env`
+## 2.85 LINE — send yourself a daily summary
+
+This one isn't a "connection" like the others — it's a button, **"Send summary to LINE now"**, on the "Connect more" tab. Clicking it bundles up your Inbox / today's plans / Slack messages into a short message and pushes it to your own LINE.
+
+1. Go to https://developers.line.biz/console/ → pick a Provider → pick a **Messaging API** Channel
+   (already have a LINE bot from something else? reuse that same channel, no need for a new one)
+2. **Basic settings** tab → scroll to **Channel access token** → click **Issue** (or copy the one already issued)
+3. Same tab, scroll to **"Your user ID"** — if you're logged into the console with your own personal LINE account, this is your own User ID (different from the bot's User ID)
+
+> Don't want this feature? Skip it — the button just won't show up if it's not configured.
+
+---
+
+## 3. Fill in `.env`
 
 ```bash
 cd myDashboard
 cp .env.example .env
 ```
 
-เปิด `.env` แล้วเติมค่า
+Open `.env` and fill in the values:
 
 ```
 GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
@@ -256,47 +256,47 @@ PORT=3000
 HOST=127.0.0.1
 ```
 
-แต่ละแหล่งไม่ขึ้นต่อกัน — ใส่เท่าที่มีก่อนได้ แท็บที่ยังไม่มี token จะขึ้นข้อความบอกว่าต้องตั้งอะไร
+None of these depend on each other — fill in whatever you have for now. Any tab without a token will just tell you what's missing.
 
-`.env` อยู่ใน `.gitignore` แล้ว จะไม่ติดขึ้น git
+`.env` is already in `.gitignore`, so it won't end up on git.
 
 ---
 
-## 4. รัน
+## 4. Run it
 
 ```bash
 npm install
-npm run build   # build หน้าเว็บ (React) — ต้องรันใหม่ทุกครั้งที่โค้ดใน web/ เปลี่ยน
+npm run build   # builds the web app (React) — run again anytime code in web/ changes
 npm start
 ```
 
-จะขึ้นว่า
+You should see:
 
 ```
   myDashboard  →  http://localhost:3000
 ```
 
-เปิดเบราว์เซอร์ไปที่ http://localhost:3000
+Open your browser to http://localhost:3000
 
-### ครั้งแรก
+### First time
 
-แท็บกล่องจดหมายจะขึ้นปุ่ม **เชื่อม Gmail** — กด แล้วเลือกบัญชี
+The Mailbox tab will show a **Connect Gmail** button — click it and pick your account.
 
-- เจอหน้า **"Google hasn't verified this app"** → กด **Advanced → Go to myDashboard (unsafe)** — ปกติ เพราะแอปอยู่สถานะ Testing และเป็นแอปของคุณเอง
-- กด Continue ให้สิทธิ์อ่าน Gmail
-- กลับมาที่หน้า "เชื่อม Gmail สำเร็จ" → กดลิงก์กลับหน้า dashboard
+- See **"Google hasn't verified this app"**? Click **Advanced → Go to myDashboard (unsafe)** — normal, since the app's still in Testing and it's your own app
+- Click Continue to grant Gmail read access
+- Back on the "Connected!" page → click the link back to the dashboard
 
-Slack ไม่ต้องกดอะไร ใช้ token จาก `.env` เลย
+Slack needs no clicking — it just uses the token straight from `.env`.
 
 ---
 
-## 5. ตรวจว่าใช้ได้
+## 5. Check that it's working
 
 ```bash
 curl -s localhost:3000/api/status
 ```
 
-ควรได้ `{"gmail":true,"calendar":true,"slack":true,"github":true,"discord":true,"line":true}`
+Should return `{"gmail":true,"calendar":true,"slack":true,"github":true,"discord":true,"line":true}`
 
 ```bash
 curl -s localhost:3000/api/mail/summary | head -c 300
@@ -305,54 +305,54 @@ curl -s localhost:3000/api/slack | head -c 300
 
 ---
 
-## 6. Deploy สาธารณะ — เปิด login กันคนอื่นเข้าถึง
+## 6. Deploying publicly — turn on login to keep others out
 
-ตราบใดที่ยังรันแค่ที่ `localhost` (default) ข้ามขั้นนี้ไปได้เลย — เข้าได้แค่เครื่องตัวเองอยู่แล้ว
+As long as this only ever runs on `localhost` (the default), skip this whole section — only your own machine can reach it anyway.
 
-แต่ถ้าจะ deploy ขึ้นโดเมนจริง (เช่น `notify.siwat.me`) ให้คนอื่นเปิด URL ถึงได้ **ต้องเปิด login ก่อนเสมอ** ไม่งั้นใครก็เข้าดูอีเมล/Slack จริงของคุณได้ทันที
+But if you're putting it on a real domain so it's reachable from anywhere, **you need login turned on first** — otherwise anyone with the URL can see your real email and Slack instantly.
 
-ระบบ login นี้แยกจาก OAuth ที่ใช้อ่าน Gmail/ปฏิทินโดยสิ้นเชิง — เป็นแค่การเช็คว่า "ใครกำลังเปิดหน้านี้อยู่" ผ่านการ login ด้วย Google (ไม่ขอสิทธิ์อ่านอะไรจากบัญชีที่ login เข้ามาเลย) แล้วเทียบว่าอีเมลตรงกับของคุณเท่านั้นถึงจะปล่อยเข้า
+This login system is completely separate from the OAuth that reads Gmail/Calendar — it's just checking "who's opening this page" by having them log in with Google (it doesn't ask for any permission on the account that logs in), then only letting them through if the email matches yours.
 
-1. กลับไปที่ Google Cloud Console → OAuth client เดิม (ตัวเดียวกับข้อ 1) → **Authorized redirect URIs** → เพิ่ม
-   `https://<โดเมนของคุณ>/auth/site/callback` (ถ้ายังทดสอบบนเครื่องตัวเองอยู่ ใส่ `http://localhost:3000/auth/site/callback` ไว้ด้วย)
-2. สุ่มค่า `SESSION_SECRET` (ใช้เซ็นคุกกี้ กันคนปลอม session):
+1. Back in Google Cloud Console → your existing OAuth client (the one from step 1) → **Authorized redirect URIs** → add
+   `https://<your-domain>/auth/site/callback` (still testing locally too? also add `http://localhost:3000/auth/site/callback`)
+2. Generate a random `SESSION_SECRET` (used to sign cookies, so nobody can fake a session):
    ```bash
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
-3. เติมค่าใน `.env`:
+3. Fill these into `.env`:
    ```
-   ALLOWED_EMAIL=sj.siwat@gmail.com
-   SESSION_SECRET=<ค่าที่สุ่มได้จากข้อ 2>
-   SITE_REDIRECT_URI=https://<โดเมนของคุณ>/auth/site/callback
+   ALLOWED_EMAIL=your@email.com
+   SESSION_SECRET=<the value you just generated>
+   SITE_REDIRECT_URI=https://<your-domain>/auth/site/callback
    ```
-4. รีสตาร์ต server — ตอนนี้เข้าหน้าไหนก็ตามจะเด้งไปหน้า `/login` ก่อน ต้องกด "เข้าสู่ระบบด้วย Google" แล้ว login ด้วยอีเมลที่ตรงกับ `ALLOWED_EMAIL` เท่านั้นถึงจะเข้าเห็นแดชบอร์ดได้ — คนอื่นที่ login ด้วยบัญชีตัวเองจะเจอหน้า "ไม่มีสิทธิ์เข้าถึง"
+4. Restart the server — now any page redirects to `/login` first. You'll need to click "Log in with Google" and log in with the exact email that matches `ALLOWED_EMAIL` to see the dashboard. Anyone else who logs in with their own account gets a "no access" page.
 
-> ลบ `ALLOWED_EMAIL`/`SESSION_SECRET` ออกจาก `.env` เมื่อไหร่ก็ปิด login กลับไปโหมด local ทันที (ใช้ตอน dev บนเครื่องตัวเองสะดวกกว่า)
+> Delete `ALLOWED_EMAIL`/`SESSION_SECRET` from `.env` any time to turn login back off and go back to local mode (handy for development on your own machine).
 
 ---
 
-## แก้ปัญหาที่เจอบ่อย
+## Common problems
 
-| อาการ | สาเหตุ / วิธีแก้ |
+| Symptom | Cause / fix |
 |---|---|
-| `redirect_uri_mismatch` | URI ใน Google Console ไม่ตรงเป๊ะกับ `GOOGLE_REDIRECT_URI` — ต้องเหมือนกันทุกตัวอักษร รวม `http://` และไม่มี `/` ต่อท้าย |
-| `access_denied` ตอน authorize | ยังไม่ได้ใส่อีเมลตัวเองใน Test users |
-| `/api/status` คืน `gmail:false` ทั้งที่เพิ่ง authorize | ไฟล์ `token.json` เขียนไม่สำเร็จ — เช็คสิทธิ์เขียนในโฟลเดอร์ |
-| `slack …: missing_scope (ต้องการ scope: …)` | scope ที่ขาดอยู่ในข้อความ error — เพิ่มใน **User Token Scopes** แล้วต้อง **Reinstall to Workspace** ใหม่ (token เดิมใช้ไม่ได้ ต้องคัดลอกตัวใหม่) |
-| `invalid_auth` | token ผิดหรือหมดอายุ / เผลอใช้ Bot token (`xoxb-`) แทน user token (`xoxp-`) |
-| `GITHUB_TOKEN ใช้ไม่ได้` | token หมดอายุหรือคัดลอกไม่ครบ — สร้างใหม่ที่ github.com/settings/tokens |
-| แท็บ GitHub ว่าง ทั้งที่มี token | token ไม่มี scope `read:user` — แก้ scope ของ token เดิมได้เลย ไม่ต้องสร้างใหม่ |
-| แท็บปฏิทินขึ้น "token เดิมออกก่อนมีแท็บปฏิทิน" | token.json ที่มีอยู่ออกตอนที่ยังขอแค่ scope Gmail — กด **ให้สิทธิ์ปฏิทิน** ในแท็บนั้น (หรือ "เชื่อมต่ออื่น ๆ") แล้วกด Allow ใหม่ครั้งเดียว ไม่ต้องลบ token.json เอง |
-| ปฏิทินบางอันไม่โผล่ | แดชบอร์ดดึงเฉพาะปฏิทินที่ **ติ๊กเปิดแสดง** อยู่ใน Google Calendar — ไปติ๊กเปิดในเว็บ Google Calendar ก่อน แล้วรอ cache รายชื่อปฏิทินหมดอายุ (10 นาที) หรือรีสตาร์ต server |
-| นัดขึ้นผิดเวลาไป 7 ชม. | `CALENDAR_TZ` ใน `.env` ไม่ตรงกับโซนที่ใช้จริง — ตั้งให้ตรงแล้วรีสตาร์ต |
-| กด "บันทึก" แล้วขึ้น "ไม่มีสิทธิ์แก้นัด" | ปฏิทินนั้นแชร์มาแบบอ่านอย่างเดียว (เช่น ปฏิทินวันหยุด) — แก้ได้เฉพาะปฏิทินที่คุณเป็นเจ้าของหรือมีสิทธิ์เขียน |
-| Gmail หลุดสิทธิ์ทุก 7 วัน | OAuth consent screen สถานะ Testing → refresh token หมดอายุ 7 วัน กด **Publish app** ถ้าอยากใช้ยาว ๆ (จะขึ้นเตือน unverified แต่ยังใช้ได้) |
-| `/api/slack` ช้ามาก | ยิง `conversations.history` ทีละห้อง จำกัดไว้ 25 ห้อง — ผลลัพธ์ cache 60 วินาที โหลดรอบสองจะเร็ว |
-| อยากล้างการเชื่อม Gmail | แท็บ "เชื่อมต่ออื่น ๆ" → ปุ่ม **ยกเลิกการเชื่อม** (ลบ `token.json`) |
-| แท็บ Discord ขึ้นข้อความว่าง ๆ ทั้งที่มี token | ลืมเปิด **MESSAGE CONTENT INTENT** ในแท็บ Bot ของ Discord Developer Portal — เนื้อความข้อความจะว่างเปล่าถ้าไม่เปิด |
-| `/api/discord` error `403`/`50001 Missing Access` | บอทยังไม่ได้ถูกเชิญเข้าห้องนั้น หรือ `DISCORD_CHANNEL_IDS` ใส่ id ผิด — เชิญบอทผ่านลิงก์ OAuth2 ใหม่แล้วเช็ก id อีกครั้ง |
-| กดส่งสรุปเข้า LINE แล้ว error `line push: 401` | `LINE_CHANNEL_ACCESS_TOKEN` ผิดหรือหมดอายุ — ไปออก token ใหม่ที่ LINE Developers Console |
-| กดส่งสรุปเข้า LINE แล้ว error `line push: 400` | `LINE_USER_ID` ผิดรูปแบบหรือไม่ตรงบัญชี — เช็ก "Your user ID" ใน Basic settings อีกครั้ง (ต้องขึ้นต้นด้วย `U`) |
-| กด login แล้วขึ้น `redirect_uri_mismatch` | ลืมเพิ่ม `/auth/site/callback` ใน Authorized redirect URIs ของ Google Cloud Console — ต้องตรงกับ `SITE_REDIRECT_URI` เป๊ะทุกตัวอักษร |
-| Login สำเร็จแต่ขึ้น "ไม่มีสิทธิ์เข้าถึง" | อีเมลที่ login ไม่ตรงกับ `ALLOWED_EMAIL` ใน `.env` (เทียบตรงตัวพิมพ์เล็ก-ใหญ่ไม่สำคัญ แต่ต้องเป็นอีเมลเดียวกัน) |
-| อยากปิด login กลับไปโหมด local | ลบ `ALLOWED_EMAIL` หรือ `SESSION_SECRET` ออกจาก `.env` แล้วรีสตาร์ต — ระบบจะเปิดให้เข้าได้เหมือนเดิมทันที |
+| `redirect_uri_mismatch` | The URI in Google Console doesn't exactly match `GOOGLE_REDIRECT_URI` — has to match character-for-character, including `http://` and no trailing `/` |
+| `access_denied` while authorizing | You haven't added your own email under Test users yet |
+| `/api/status` returns `gmail:false` right after authorizing | `token.json` failed to write — check the folder's write permissions |
+| `slack …: missing_scope (requires scope: …)` | The missing scope is named in the error — add it under **User Token Scopes**, then **Reinstall to Workspace** (the old token stops working, you need to copy the new one) |
+| `invalid_auth` | Wrong or expired token, or you accidentally used a Bot token (`xoxb-`) instead of a user token (`xoxp-`) |
+| `GITHUB_TOKEN` doesn't work | Token expired or wasn't copied fully — generate a new one at github.com/settings/tokens |
+| GitHub tab is empty even with a token set | Token is missing the `read:user` scope — just edit the existing token's scopes, no need to make a new one |
+| Calendar tab says the token predates the calendar feature | Your existing `token.json` was issued back when it only asked for Gmail scope — click **Grant calendar access** on that tab (or "Connect more") and approve once, no need to delete `token.json` yourself |
+| Some calendars don't show up | The dashboard only pulls calendars that are **checked/visible** in Google Calendar — check the box on the Google Calendar website, then wait for the calendar-list cache to expire (10 minutes) or restart the server |
+| Events show up 7 hours off | `CALENDAR_TZ` in `.env` doesn't match your actual timezone — fix it and restart |
+| Clicking "Save" shows "no permission to edit" | That calendar was shared with you as read-only (like a holidays calendar) — you can only edit calendars you own or have write access to |
+| Gmail access drops every 7 days | OAuth consent screen is in Testing status → refresh token expires every 7 days. Click **Publish app** if you want it to last longer (you'll get an unverified warning, but it still works) |
+| `/api/slack` is really slow | It calls `conversations.history` per channel, capped at 25 channels — results are cached for 60 seconds, so the second load is fast |
+| Want to disconnect Gmail | "Connect more" tab → **Disconnect** button (deletes `token.json`) |
+| Discord tab shows empty messages even with a token | Forgot to turn on **MESSAGE CONTENT INTENT** in the Bot tab of the Discord Developer Portal — message content comes through blank without it |
+| `/api/discord` error `403` / `50001 Missing Access` | The bot hasn't been invited to that channel, or `DISCORD_CHANNEL_IDS` has a wrong ID — re-invite the bot with the OAuth2 link and double-check the IDs |
+| Sending a LINE summary gives `line push: 401` | `LINE_CHANNEL_ACCESS_TOKEN` is wrong or expired — issue a new one in the LINE Developers Console |
+| Sending a LINE summary gives `line push: 400` | `LINE_USER_ID` is malformed or doesn't match the account — check "Your user ID" under Basic settings again (should start with `U`) |
+| Logging in gives `redirect_uri_mismatch` | Forgot to add `/auth/site/callback` to Authorized redirect URIs in Google Cloud Console — has to match `SITE_REDIRECT_URI` character-for-character |
+| Login works but shows "no access" | The email you logged in with doesn't match `ALLOWED_EMAIL` in `.env` (case doesn't matter, but it has to be the same email) |
+| Want to turn login off, back to local mode | Delete `ALLOWED_EMAIL` or `SESSION_SECRET` from `.env` and restart — access opens back up immediately |
