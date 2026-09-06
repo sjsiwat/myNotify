@@ -110,7 +110,7 @@ app.get('/auth/site/callback', async (req, res) => {
         '<p><a href="/login">กลับไปหน้า login</a></p></body>'
       );
     }
-    res.setHeader('Set-Cookie', sessionCookie(email));
+    res.setHeader('Set-Cookie', sessionCookie(email, req.secure));
     res.redirect('/');
   } catch (e) {
     console.error('[/auth/site/callback]', e.message);

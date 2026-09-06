@@ -88,9 +88,9 @@ function parseCookies(header) {
   return out;
 }
 
-export function sessionCookie(email) {
+export function sessionCookie(email, secure) {
   const value = sign({ email, exp: Date.now() + SESSION_MS });
-  const secureFlag = process.env.NODE_ENV === 'production' ? ' Secure;' : '';
+  const secureFlag = secure ? ' Secure;' : '';
   return `${COOKIE_NAME}=${value}; HttpOnly;${secureFlag} SameSite=Lax; Path=/; Max-Age=${Math.floor(SESSION_MS / 1000)}`;
 }
 
