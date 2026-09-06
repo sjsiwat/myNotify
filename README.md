@@ -1,142 +1,142 @@
 # myDashboard
 
-แดชบอร์ดส่วนตัว รวมทุกอย่างที่ต้องเช็คทุกวันไว้หน้าเดียว: Gmail, Google Calendar, Slack, Discord และ GitHub — เปิดมาก็เห็นภาพรวม ไม่ต้องสลับแอปไปมา
+A personal dashboard that puts everything you need to check every day on one page: Gmail, Google Calendar, Slack, Discord, and GitHub. Open it once and you see the whole picture — no more jumping between five different apps.
 
-ข้อมูลทั้งหมดดึงสดจากบัญชีจริงของคุณทุกครั้งที่เปิดหน้า ไม่มีฐานข้อมูลเก็บสำเนาไว้ที่ไหน
+Everything is pulled fresh from your real accounts every time you open the page. There's no database saving a copy anywhere.
 
-## เริ่มใช้งาน
+## Getting started
 
 ```bash
 npm install
-cp .env.example .env    # เติมค่า credential ต่าง ๆ — ดูขั้นตอนละเอียดใน SETUP.md
-npm run build            # build หน้าเว็บ (React) ครั้งแรก — ต้องรันใหม่ทุกครั้งที่แก้โค้ดใน web/
+cp .env.example .env    # fill in your credentials — full steps in SETUP.md
+npm run build            # build the web app (React) the first time — run again after any change in web/
 npm start
 ```
 
-เปิด http://localhost:3000 แล้วกด **เชื่อม Gmail** ครั้งแรกครั้งเดียว (ปุ่มเดียวขอสิทธิ์ทั้ง Gmail และ Calendar พร้อมกัน) ที่เหลือ (Slack, Discord, GitHub, LINE, Login) เป็นของเสริม เชื่อมเพิ่มได้ทีหลังเมื่อไหร่ก็ได้
+Open http://localhost:3000 and click **Connect Gmail** once (one button asks for both Gmail and Calendar at the same time). Everything else — Slack, Discord, GitHub, LINE, Login — is optional. Connect them whenever you want, no rush.
 
-ทุกฟีเจอร์ **เปิด/ปิดเองอัตโนมัติตามค่าที่ตั้งใน `.env`** — ไม่ตั้งค่าของอันไหน แท็บนั้นก็แค่ไม่โชว์ ไม่มีอะไรพัง
+Every feature **turns on or off automatically based on what you set in `.env`**. Skip a setting and that tab just doesn't show up — nothing breaks.
 
-วิธีขอ credential จาก Google / Slack / Discord / GitHub / LINE ทีละขั้นตอน อยู่ใน **[SETUP.md](SETUP.md)**
+Step-by-step guide for getting credentials from Google / Slack / Discord / GitHub / LINE is in **[SETUP.md](SETUP.md)**.
 
-## แต่ละแท็บมีอะไรบ้าง
+## What's in each tab
 
-- **ภาพรวม** — สรุปตัวเลขสำคัญ (อีเมลค้าง, ข้อความ Slack ถึงคุณ, นัดวันนี้) พร้อมรายการที่ต้องตามอ่าน
-- **กล่องจดหมาย** — อีเมลที่ค้างใน Inbox แยกตามป้ายกำกับ กดอ่าน/ลบได้จากในหน้าเว็บเลย
-- **ปฏิทิน** — ตารางรายเดือนจากทุกปฏิทินที่เปิดอยู่ใน Google Calendar ดู/เพิ่ม/แก้/ลบนัดได้ — **แก้จริง สะท้อนกลับเข้า Google Calendar ทันที**
-- **Slack** — DM ที่ถึงคุณและความเคลื่อนไหวในช่องที่คุณอยู่ ต่อได้มากกว่า 1 workspace พร้อมกัน
-- **Discord** — ความเคลื่อนไหวในห้องที่เลือกไว้ (ไม่รองรับ DM เพราะข้อจำกัดของ Discord — ดูหัวข้อข้อจำกัดด้านล่าง)
-- **GitHub** — ปฏิทิน contribution แบบเดียวกับหน้าโปรไฟล์ GitHub และคอมมิทล่าสุด
-- **เชื่อมต่ออื่น ๆ** — ดูว่าอะไรเชื่อมอยู่บ้าง เชื่อม/ยกเลิก Gmail และปุ่ม "ส่งสรุปเข้า LINE" (สรุปงานวันนี้แบบสั้น ๆ push เข้า LINE ตัวเอง)
+- **Overview** — the important numbers at a glance (emails waiting, Slack messages to you, today's plans) plus a list of stuff you should probably read
+- **Mailbox** — emails still sitting in your Inbox, grouped by label. Mark as read or delete right from the page
+- **Calendar** — a monthly view of everything on your visible Google Calendars. View, add, edit, delete — **changes go straight back to Google Calendar, for real**
+- **Slack** — DMs sent to you and activity in channels you're in. Works with more than one workspace at once
+- **Discord** — activity in the channels you picked (no DMs — see "Things worth knowing" below for why)
+- **GitHub** — a contribution calendar like the one on your GitHub profile, plus your latest commits
+- **Connect more** — see what's connected, connect/disconnect Gmail, and a "Send summary to LINE" button (pushes a short daily recap to your own LINE)
 
-## การเข้าสู่ระบบ (สำหรับ deploy ให้คนอื่นเข้าถึง URL ได้)
+## Login (for when you deploy this somewhere public)
 
-ปกติแดชบอร์ดนี้**ไม่มีระบบ login** เพราะออกแบบมาให้รันบนเครื่องตัวเองคนเดียว แต่ถ้าจะ deploy ขึ้นโดเมนสาธารณะ (เช่น `notify.siwat.me`) ต้องกันไม่ให้คนอื่นเข้ามาเห็นอีเมล/แชทของคุณ
+By default, this dashboard **has no login at all** — it's built to run on your own machine, just for you. But if you're putting it on a public domain (like `notify.siwat.me`), you need to stop random people from seeing your email and chats.
 
-ตั้งค่า 2 ตัวนี้ใน `.env` เพื่อเปิดระบบ login:
+Set these two in `.env` to turn login on:
 
 ```
 ALLOWED_EMAIL=your@email.com
-SESSION_SECRET=<สุ่มด้วยคำสั่งใน SETUP.md>
+SESSION_SECRET=<generate one — see SETUP.md>
 ```
 
-ตั้งแล้ว ทุกหน้า/ทุก API จะต้อง **login ด้วย Google ก่อน และต้องเป็นอีเมลนั้นเท่านั้นถึงจะเข้าได้** — นี่เป็น OAuth คนละตัวกับที่ใช้อ่าน Gmail (ขอแค่สิทธิ์รู้อีเมล ไม่แตะข้อมูลอะไรเลย) ไม่ตั้งค่าไว้ = แอปเปิดให้เข้าได้เหมือนเดิม
+Once set, every page and every API call needs you to **log in with Google first, and only that exact email can get in**. This uses a separate OAuth flow from the one that reads your Gmail — it only asks to know your email address, nothing else. Leave it unset and the app stays open like before.
 
-ขั้นตอนตั้งค่าเต็ม ๆ (Google Cloud Console, redirect URI) อยู่ใน **[SETUP.md §6](SETUP.md)**
+Full setup steps (Google Cloud Console, redirect URIs) are in **[SETUP.md §6](SETUP.md)**.
 
-## Deploy ขึ้น notify.siwat.me (Render + Cloudflare)
+## Deploying (Render + Cloudflare)
 
-1. **Render** → New → Blueprint → เลือก repo นี้ (มี `render.yaml` อยู่แล้ว กำหนด build/start command ให้เอง)
-2. เติม environment variables ที่ Render ถามตอนสร้าง (ตัวที่เป็นความลับ เช่น `GOOGLE_CLIENT_SECRET`, `SESSION_SECRET`, `SLACK_USER_TOKEN` ฯลฯ) — **ต้องตั้ง `ALLOWED_EMAIL` กับ `SESSION_SECRET` ด้วย** ไม่งั้นใครก็เข้าเว็บสาธารณะนี้แล้วเห็นอีเมล/แชทได้เลย
-3. Render → Settings → Custom Domains → เพิ่ม `notify.siwat.me` จะได้ hostname ปลายทาง (เช่น `mydashboard.onrender.com`) ไว้ผูก DNS
-4. **Cloudflare** → DNS → เพิ่ม CNAME record: `notify` → hostname จาก Render — ตั้งเป็น **DNS only (เมฆเทา)** ก่อน ให้ Render ออก TLS certificate ผ่านได้ ค่อยเปลี่ยนเป็น proxied (เมฆส้ม) ทีหลังได้ถ้าต้องการ
-5. กลับไปที่ Google Cloud Console → เพิ่ม `https://notify.siwat.me/auth/google/callback` และ `https://notify.siwat.me/auth/site/callback` ใน Authorized redirect URIs ของ OAuth client (ให้ตรงกับ `GOOGLE_REDIRECT_URI`/`SITE_REDIRECT_URI` ที่ตั้งใน Render)
+1. **Render** → New → Blueprint → pick this repo (it already has a `render.yaml` that sets the build/start commands for you)
+2. Fill in the environment variables Render asks for when creating the service (the secret ones like `GOOGLE_CLIENT_SECRET`, `SESSION_SECRET`, `SLACK_USER_TOKEN`, etc.) — **make sure to set `ALLOWED_EMAIL` and `SESSION_SECRET` too**, or anyone who finds the URL can read your email and chats
+3. Render → Settings → Custom Domains → add your domain to get a target hostname (something like `mydashboard.onrender.com`) to point your DNS at
+4. **Cloudflare** → DNS → add a CNAME record pointing your subdomain at that Render hostname — set it to **DNS only (grey cloud)** first so Render can issue a TLS certificate, then switch to proxied (orange cloud) later if you want
+5. Back in Google Cloud Console → add your live callback URLs to the OAuth client's Authorized redirect URIs (matching whatever `GOOGLE_REDIRECT_URI` / `SITE_REDIRECT_URI` you set on Render)
 
-## โครงสร้างโปรเจกต์
+## Project structure
 
 ```
 myDashboard/
-├── web/                      หน้าเว็บ — React + Tailwind (Vite) ดูรายละเอียดใน web/README.md
-│   └── dist/                 ผลลัพธ์หลัง npm run build — server/index.js serve โฟลเดอร์นี้
+├── web/                      the web app — React + Tailwind (Vite), see web/README.md for details
+│   └── dist/                 output after npm run build — server/index.js serves this folder
 ├── public/
-│   └── login.html            หน้า login (โชว์เฉพาะตอนเปิดฟีเจอร์ login)
+│   └── login.html            login page (only shown when the login feature is on)
 ├── server/
-│   ├── index.js              express routes + cache 60 วิ
-│   ├── google.js             OAuth2 flow (Gmail/Calendar) + เก็บ/รีเฟรช token.json
-│   ├── auth.js               OAuth2 flow แยกต่างหากสำหรับ login เข้าเว็บ
+│   ├── index.js              express routes + a 60-second cache
+│   ├── google.js             OAuth2 flow (Gmail/Calendar) + saves/refreshes token.json
+│   ├── auth.js               a separate OAuth2 flow just for the site login
 │   ├── gmail.js              summary() / inbox()
-│   ├── calendar.js           month() + สร้าง/แก้/ลบนัด
+│   ├── calendar.js           month() + create/edit/delete events
 │   ├── slack.js              dms() / feed()
-│   ├── discord.js            feed() — REST API ด้วย bot token
+│   ├── discord.js            feed() — REST API using a bot token
 │   ├── github.js             overview() — GraphQL
-│   └── line.js               digest() — สรุปงานส่งเข้า LINE
-└── SETUP.md                  ขั้นตอนเซ็ตอัปทีละขั้น
+│   └── line.js               digest() — sends the daily summary to LINE
+└── SETUP.md                  step-by-step setup guide
 ```
 
-## ทำงานยังไง (สำหรับคนอยากอ่านโค้ดต่อ)
+## How it works (if you want to read the code)
 
-หน้าเว็บ (`web/`) เป็น React SPA ธรรมดา คุยกับ backend ผ่าน `/api/*` เท่านั้น — โครงสร้างโค้ดฝั่งนี้อธิบายไว้ใน [web/README.md](web/README.md)
+The web app (`web/`) is a plain React SPA that only talks to the backend through `/api/*`. The code layout on that side is explained in [web/README.md](web/README.md).
 
-### API ทั้งหมด
+### All the API routes
 
-| Route | คืนอะไร |
+| Route | Returns |
 |---|---|
-| `GET /api/status` | `{gmail, gmailWrite, calendar, slack, github, discord, line, loginEnabled}` — ทั้งหมดเป็น bool |
+| `GET /api/status` | `{gmail, gmailWrite, calendar, slack, github, discord, line, loginEnabled}` — all booleans |
 | `GET /api/mail/summary` | `{inbox, unread, trash, labels: [{name, threads, messages, unread, color}]}` |
 | `GET /api/mail/inbox` | `[{name, domain, subject, date, unread, isLinkedIn}]` |
-| `GET /api/mail/message/:id` | เนื้อหาอีเมลฉบับเต็ม |
-| `POST /api/mail/read` | mark เป็นอ่านแล้ว — body `{id}` |
-| `POST /api/mail/trash` | ย้ายเข้าถังขยะ — body `{id}` |
-| `GET /api/slack` | `{dms: [], feed: []}` — แต่ละตัว `{chan, isDm, author, text, ts}` |
-| `GET /api/discord` | `[{chan, isDm: false, author, text, ts}]` — ข้อความจากห้องใน `DISCORD_CHANNEL_IDS` |
-| `GET /api/github` | `{login, total, weeks, commits}` — `weeks` คือปฏิทิน, `commits[].mine` บอกว่าเป็นคอมมิทของเจ้าของ token ไหม |
+| `GET /api/mail/message/:id` | the full email content |
+| `POST /api/mail/read` | mark as read — body `{id}` |
+| `POST /api/mail/trash` | move to trash — body `{id}` |
+| `GET /api/slack` | `{dms: [], feed: []}` — each item is `{chan, isDm, author, text, ts}` |
+| `GET /api/discord` | `[{chan, isDm: false, author, text, ts}]` — messages from the channels in `DISCORD_CHANNEL_IDS` |
+| `GET /api/github` | `{login, total, weeks, commits}` — `weeks` is the calendar, `commits[].mine` says if it's the token owner's own commit |
 | `GET /api/calendar?month=YYYY-MM` | `{month, tz, calendars, events}` |
-| `POST /api/calendar` | เพิ่มนัด — body `{calendarId, title, allDay, start, end, location, description}` |
-| `PATCH /api/calendar` | แก้นัด — body เหมือน POST + `eventId` |
-| `DELETE /api/calendar` | ลบนัด — body `{calendarId, eventId}` |
-| `POST /api/line/digest` | รวม Inbox/นัดวันนี้/Slack เป็นข้อความ push เข้า `LINE_USER_ID` |
-| `GET /auth/google` | redirect ไปหน้า consent (Gmail/Calendar) |
-| `GET /auth/google/callback` | แลก code เก็บลง `token.json` |
-| `POST /auth/google/logout` | ลบ `token.json` |
-| `GET /login` | หน้า login (เฉพาะตอนตั้ง `ALLOWED_EMAIL`/`SESSION_SECRET`) |
-| `GET /auth/site/login` | redirect ไปหน้า Google consent ของระบบ login เว็บ |
-| `GET /auth/site/callback` | เช็คอีเมลตรงกับ `ALLOWED_EMAIL` แล้วออกคุกกี้ session |
-| `POST /auth/site/logout` | ลบคุกกี้ session |
+| `POST /api/calendar` | add an event — body `{calendarId, title, allDay, start, end, location, description}` |
+| `PATCH /api/calendar` | edit an event — same body as POST + `eventId` |
+| `DELETE /api/calendar` | delete an event — body `{calendarId, eventId}` |
+| `POST /api/line/digest` | bundles inbox/today's plans/Slack into a message, pushes it to `LINE_USER_ID` |
+| `GET /auth/google` | redirects to the Google consent screen (Gmail/Calendar) |
+| `GET /auth/google/callback` | trades the code for a token, saves it to `token.json` |
+| `POST /auth/google/logout` | deletes `token.json` |
+| `GET /login` | the login page (only when `ALLOWED_EMAIL`/`SESSION_SECRET` are set) |
+| `GET /auth/site/login` | redirects to Google consent for the site-login flow |
+| `GET /auth/site/callback` | checks the email matches `ALLOWED_EMAIL`, then sets a session cookie |
+| `POST /auth/site/logout` | clears the session cookie |
 
-รายละเอียดปลีกย่อยเชิงเทคนิค (scope ที่ขอ, ทำไมเลือก GraphQL/REST, cache, ฯลฯ) — ดูคอมเมนต์ในซอร์สโค้ดแต่ละไฟล์ เขียนอธิบายไว้ตรงจุดที่ตัดสินใจ
+For the smaller technical stuff (what scopes it asks for, why GraphQL vs REST, caching, etc.) — check the comments in each source file, written right where the decision was made.
 
-## ข้อจำกัดที่ควรรู้
+## Things worth knowing
 
-- **1 เจ้าของต่อ 1 instance** — ไม่ใช่ระบบหลายผู้ใช้ ถ้าอยากให้คนอื่นใช้ ต้องแยกรัน instance ของตัวเอง (login ก็รองรับแค่ 1 อีเมลต่อ instance เหมือนกัน)
-- Discord ไม่มี DM เพราะบอทเป็นบัญชีแยกจากคุณ อ่านข้อความส่วนตัวไม่ได้ตามข้อจำกัดของ Discord ToS
-- Discord/Slack ดึงข้อความย้อนหลังจำกัดจำนวน — ห้อง/DM ที่คึกคักมากอาจเห็นไม่ครบ 7 วัน
-- ปฏิทินดึงเฉพาะอันที่ **เปิดแสดงอยู่** ใน Google Calendar ถ้านัดบางอันไม่โผล่ ให้ไปติ๊กเปิดปฏิทินนั้นในเว็บ Google Calendar ก่อน
-- OAuth consent screen สถานะ Testing จะทำให้ refresh token หมดอายุใน 7 วัน ต้อง authorize ใหม่ (กด Publish app ถ้าอยากใช้ยาว ๆ)
+- **One owner per instance** — this isn't a multi-user system. If someone else wants to use it, they need to run their own copy (login also only supports one email per instance)
+- Discord has no DMs because the bot is a separate account from you — it can't read private messages, that's just how Discord's rules work
+- Discord/Slack only pull back so much history — a very active channel or DM might not show a full 7 days
+- The calendar only pulls calendars that are **currently checked/visible** in Google Calendar. If an event's missing, go check that calendar's box on the Google Calendar website first
+- If your OAuth consent screen is still in "Testing" mode, the refresh token expires after 7 days and you'll need to reconnect. Publish the app if you want it to last
 
-## ความปลอดภัย
+## Security
 
-**โดย default แดชบอร์ดนี้ไม่มีระบบ login** — ใครเปิดหน้านี้ได้ก็อ่านอีเมลกับ Slack ของเจ้าของได้ทันที และแก้/ลบนัดในปฏิทินได้ด้วย ออกแบบมาให้รันบนเครื่องตัวเองคนเดียวเท่านั้น (ถ้าจะ deploy ให้คนอื่นเข้าถึงได้ ต้องเปิดฟีเจอร์ Login ก่อน — ดูหัวข้อด้านบน)
+**By default, this dashboard has no login system** — anyone who opens the page can read your email and Slack right away, and even edit/delete calendar events. It's meant to run on your own machine only. If you're deploying it somewhere others can reach, turn on the Login feature first (see above).
 
-| มาตรการ | อยู่ที่ไหน |
+| What's in place | Where |
 |---|---|
-| ผูกกับ loopback อย่างเดียว เครื่องอื่นในวง LAN เข้าไม่ถึง (ค่า default) | `HOST` default `127.0.0.1` ใน `server/index.js` |
-| `state` กัน CSRF บน OAuth callback | `server/index.js` |
-| `token.json` เขียนด้วยสิทธิ์ `0600` | `writeToken()` ใน `server/google.js` |
-| กรอง token/secret ออกจาก error ที่ส่งให้ browser | `safe()` ใน `server/index.js` |
-| Gmail/Calendar ขอสิทธิ์เท่าที่จำเป็นเท่านั้น ไม่ขอสิทธิ์เต็ม | `SCOPES` ใน `server/google.js` |
-| ปฏิเสธคำสั่งที่มาจากโดเมนอื่น กันเว็บที่เปิดอยู่ยิงคำสั่งมาที่ localhost แทนเจ้าตัว | middleware ใน `server/index.js` |
-| GitHub token ขอแค่ `read:user` (+ `repo` ถ้าอยากเห็น private) | ตั้งตอนสร้าง token |
+| Only binds to loopback by default — other devices on your network can't reach it | `HOST` defaults to `127.0.0.1` in `server/index.js` |
+| A `state` value to block CSRF on the OAuth callback | `server/index.js` |
+| `token.json` is written with `0600` permissions | `writeToken()` in `server/google.js` |
+| Tokens/secrets get stripped out of any error message sent to the browser | `safe()` in `server/index.js` |
+| Gmail/Calendar only asks for the minimum scopes it needs, never full access | `SCOPES` in `server/google.js` |
+| Rejects requests coming from a different origin — stops some other open tab from firing commands at your instance | middleware in `server/index.js` |
+| GitHub token only needs `read:user` (add `repo` if you want private repos to show up) | set this when you create the token |
 
-**สิ่งที่ห้ามขึ้น git** — `.gitignore` กันไว้แล้ว แต่เช็ค `git status` ก่อน push ทุกครั้ง
+**Stuff that should never end up on git** — already covered in `.gitignore`, but double check with `git status` before every push:
 
 ```
 .env  .env.*  token.json  *.pem  *.key  credentials*.json  client_secret*.json
 ```
 
-**หลังสร้าง `.env`** ปิดสิทธิ์ให้เจ้าของอ่านคนเดียว:
+**Right after creating your `.env`**, lock it down so only you can read it:
 
 ```bash
 chmod 600 .env
 ```
 
-**ถ้าเผลอทำ token/secret หลุด** เพิกถอนตัวจริงก่อนเสมอ (ที่ต้นทาง เช่น Slack app, GitHub settings, Google account permissions) แล้วค่อยล้างประวัติ git — การลบ commit ไม่ได้ทำให้ token ที่หลุดไปแล้วใช้ไม่ได้
+**If a token or secret ever leaks**, always revoke the real thing first (at the source — Slack app settings, GitHub settings, Google account permissions), then clean up git history after. Deleting a commit doesn't undo a leaked token — it's already out there until you revoke it.
