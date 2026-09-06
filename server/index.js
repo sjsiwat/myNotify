@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { consentUrl, saveTokenFromCode, authedClient, forgetToken, hasScope, CALENDAR_SCOPE, GMAIL_SCOPE } from './google.js';
+import { loginEnabled, siteLoginUrl, emailFromCode, sessionCookie, clearCookie, requireAuth } from './auth.js';
 import * as gmail from './gmail.js';
 import * as slack from './slack.js';
 import * as github from './github.js';
@@ -25,11 +26,19 @@ const SECRET_RE =
 const safe = msg => String(msg || 'เกิดข้อผิดพลาด').replace(SECRET_RE, '[ซ่อนไว้]');
 
 const app = express();
+
+/* หน้า login กับ endpoint OAuth ของมันต้องเข้าได้ก่อน login เสมอ ไม่งั้นเข้าไป login ไม่ได้เลย
+   ที่เหลือทั้งหมด (รวมไฟล์ static และ /auth/google ของ Gmail) โดน requireAuth คุม
+   ถ้ายังไม่ได้ตั้ง ALLOWED_EMAIL/SESSION_SECRET ใน .env ฟังก์ชันนี้ผ่านให้หมดเหมือนเดิม (โหมด local) */
+app.use((req, res, next) => {
+  if (req.path === '/login' || req.path === '/login.html' || req.path.startsWith('/auth/site/')) return next();
+  requireAuth(req, res, next);
+});
+
 app.use(express.static(path.join(ROOT, 'public')));
 app.use(express.json({ limit: '64kb' }));
 
-/* ตั้งแต่มีปฏิทิน แดชบอร์ดเขียนข้อมูลได้แล้ว — และมันไม่มีระบบ login
-   กันเว็บอื่นที่ผู้ใช้เปิดอยู่ยิงคำสั่งมาที่ localhost แทนเจ้าตัว
+/* กันเว็บอื่นที่ผู้ใช้เปิดอยู่ยิงคำสั่งมาที่ localhost แทนเจ้าตัว
    (คำขอ JSON ข้ามโดเมนโดน preflight อยู่แล้ว อันนี้เป็นชั้นที่สอง) */
 app.use((req, res, next) => {
   if (req.method === 'GET' || req.method === 'HEAD') return next();
@@ -62,6 +71,52 @@ const route = fn => async (req, res) => {
     res.status(500).json({ error: safe(e.message) });
   }
 };
+
+/* ---------- login หน้าเว็บ (แยกจาก OAuth อ่านข้อมูล Gmail ด้านล่าง) ---------- */
+
+app.get('/login', (req, res) => res.sendFile(path.join(ROOT, 'public', 'login.html')));
+
+let pendingSiteState = null;
+
+app.get('/auth/site/login', (req, res) => {
+  if (!loginEnabled()) return res.redirect('/');
+  try {
+    pendingSiteState = crypto.randomBytes(16).toString('hex');
+    res.redirect(siteLoginUrl(pendingSiteState));
+  } catch (e) {
+    res.status(500).send(safe(e.message));
+  }
+});
+
+app.get('/auth/site/callback', async (req, res) => {
+  if (req.query.error) return res.status(400).send(`ปฏิเสธสิทธิ์: ${safe(req.query.error)}`);
+  if (!req.query.code) return res.status(400).send('ไม่มี code กลับมา');
+  if (!pendingSiteState || req.query.state !== pendingSiteState) {
+    return res.status(400).send('<meta charset="utf-8">state ไม่ตรง — เริ่มใหม่ที่ <a href="/login">/login</a>');
+  }
+  pendingSiteState = null;
+
+  try {
+    const { email } = await emailFromCode(String(req.query.code));
+    if (email !== String(process.env.ALLOWED_EMAIL || '').toLowerCase().trim()) {
+      return res.status(403).send(
+        '<meta charset="utf-8"><body style="font-family:sans-serif;padding:60px;text-align:center">' +
+        '<h2>ไม่มีสิทธิ์เข้าถึง</h2><p>บัญชีนี้ไม่ได้รับอนุญาตให้เข้าแดชบอร์ดนี้</p>' +
+        '<p><a href="/login">กลับไปหน้า login</a></p></body>'
+      );
+    }
+    res.setHeader('Set-Cookie', sessionCookie(email));
+    res.redirect('/');
+  } catch (e) {
+    console.error('[/auth/site/callback]', e.message);
+    res.status(500).send('เข้าสู่ระบบไม่สำเร็จ: ' + safe(e.message));
+  }
+});
+
+app.post('/auth/site/logout', (req, res) => {
+  res.setHeader('Set-Cookie', clearCookie());
+  res.json({ ok: true });
+});
 
 /* ---------- auth ---------- */
 
@@ -114,7 +169,8 @@ app.get('/api/status', route(async () => ({
   slack: Boolean(process.env.SLACK_USER_TOKEN || process.env.SLACK_USER_TOKENS),
   github: Boolean(process.env.GITHUB_TOKEN),
   discord: Boolean(process.env.DISCORD_BOT_TOKEN && process.env.DISCORD_CHANNEL_IDS),
-  line: Boolean(process.env.LINE_CHANNEL_ACCESS_TOKEN && process.env.LINE_USER_ID)
+  line: Boolean(process.env.LINE_CHANNEL_ACCESS_TOKEN && process.env.LINE_USER_ID),
+  loginEnabled: loginEnabled()
 })));
 
 /* ---------- gmail ---------- */

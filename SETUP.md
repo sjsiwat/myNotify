@@ -304,6 +304,32 @@ curl -s localhost:3000/api/slack | head -c 300
 
 ---
 
+## 6. Deploy สาธารณะ — เปิด login กันคนอื่นเข้าถึง
+
+ตราบใดที่ยังรันแค่ที่ `localhost` (default) ข้ามขั้นนี้ไปได้เลย — เข้าได้แค่เครื่องตัวเองอยู่แล้ว
+
+แต่ถ้าจะ deploy ขึ้นโดเมนจริง (เช่น `notify.siwat.me`) ให้คนอื่นเปิด URL ถึงได้ **ต้องเปิด login ก่อนเสมอ** ไม่งั้นใครก็เข้าดูอีเมล/Slack จริงของคุณได้ทันที
+
+ระบบ login นี้แยกจาก OAuth ที่ใช้อ่าน Gmail/ปฏิทินโดยสิ้นเชิง — เป็นแค่การเช็คว่า "ใครกำลังเปิดหน้านี้อยู่" ผ่านการ login ด้วย Google (ไม่ขอสิทธิ์อ่านอะไรจากบัญชีที่ login เข้ามาเลย) แล้วเทียบว่าอีเมลตรงกับของคุณเท่านั้นถึงจะปล่อยเข้า
+
+1. กลับไปที่ Google Cloud Console → OAuth client เดิม (ตัวเดียวกับข้อ 1) → **Authorized redirect URIs** → เพิ่ม
+   `https://<โดเมนของคุณ>/auth/site/callback` (ถ้ายังทดสอบบนเครื่องตัวเองอยู่ ใส่ `http://localhost:3000/auth/site/callback` ไว้ด้วย)
+2. สุ่มค่า `SESSION_SECRET` (ใช้เซ็นคุกกี้ กันคนปลอม session):
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+3. เติมค่าใน `.env`:
+   ```
+   ALLOWED_EMAIL=sj.siwat@gmail.com
+   SESSION_SECRET=<ค่าที่สุ่มได้จากข้อ 2>
+   SITE_REDIRECT_URI=https://<โดเมนของคุณ>/auth/site/callback
+   ```
+4. รีสตาร์ต server — ตอนนี้เข้าหน้าไหนก็ตามจะเด้งไปหน้า `/login` ก่อน ต้องกด "เข้าสู่ระบบด้วย Google" แล้ว login ด้วยอีเมลที่ตรงกับ `ALLOWED_EMAIL` เท่านั้นถึงจะเข้าเห็นแดชบอร์ดได้ — คนอื่นที่ login ด้วยบัญชีตัวเองจะเจอหน้า "ไม่มีสิทธิ์เข้าถึง"
+
+> ลบ `ALLOWED_EMAIL`/`SESSION_SECRET` ออกจาก `.env` เมื่อไหร่ก็ปิด login กลับไปโหมด local ทันที (ใช้ตอน dev บนเครื่องตัวเองสะดวกกว่า)
+
+---
+
 ## แก้ปัญหาที่เจอบ่อย
 
 | อาการ | สาเหตุ / วิธีแก้ |
@@ -326,3 +352,6 @@ curl -s localhost:3000/api/slack | head -c 300
 | `/api/discord` error `403`/`50001 Missing Access` | บอทยังไม่ได้ถูกเชิญเข้าห้องนั้น หรือ `DISCORD_CHANNEL_IDS` ใส่ id ผิด — เชิญบอทผ่านลิงก์ OAuth2 ใหม่แล้วเช็ก id อีกครั้ง |
 | กดส่งสรุปเข้า LINE แล้ว error `line push: 401` | `LINE_CHANNEL_ACCESS_TOKEN` ผิดหรือหมดอายุ — ไปออก token ใหม่ที่ LINE Developers Console |
 | กดส่งสรุปเข้า LINE แล้ว error `line push: 400` | `LINE_USER_ID` ผิดรูปแบบหรือไม่ตรงบัญชี — เช็ก "Your user ID" ใน Basic settings อีกครั้ง (ต้องขึ้นต้นด้วย `U`) |
+| กด login แล้วขึ้น `redirect_uri_mismatch` | ลืมเพิ่ม `/auth/site/callback` ใน Authorized redirect URIs ของ Google Cloud Console — ต้องตรงกับ `SITE_REDIRECT_URI` เป๊ะทุกตัวอักษร |
+| Login สำเร็จแต่ขึ้น "ไม่มีสิทธิ์เข้าถึง" | อีเมลที่ login ไม่ตรงกับ `ALLOWED_EMAIL` ใน `.env` (เทียบตรงตัวพิมพ์เล็ก-ใหญ่ไม่สำคัญ แต่ต้องเป็นอีเมลเดียวกัน) |
+| อยากปิด login กลับไปโหมด local | ลบ `ALLOWED_EMAIL` หรือ `SESSION_SECRET` ออกจาก `.env` แล้วรีสตาร์ต — ระบบจะเปิดให้เข้าได้เหมือนเดิมทันที |
