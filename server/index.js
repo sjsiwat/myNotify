@@ -35,7 +35,7 @@ app.use((req, res, next) => {
   requireAuth(req, res, next);
 });
 
-app.use(express.static(path.join(ROOT, 'public')));
+app.use(express.static(path.join(ROOT, 'web', 'dist')));
 app.use(express.json({ limit: '64kb' }));
 
 /* กันเว็บอื่นที่ผู้ใช้เปิดอยู่ยิงคำสั่งมาที่ localhost แทนเจ้าตัว

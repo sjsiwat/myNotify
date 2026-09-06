@@ -6,24 +6,30 @@
 <title>เข้าสู่ระบบ — myDashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#f2e9d8;--surface:#fffbf2;--line:#18130f;--ink:#18130f;--ink-2:#4a4136;--accent:#ff441c;--shadow:#18130f}
+  :root{--bg:#f2e9d8;--surface:#fffbf2;--line:#18130f;--ink:#18130f;--ink-2:#4a4136;
+    --accent:#ff441c;--blue-soft:#96def9}
   *{box-sizing:border-box}
   body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);
-    font-family:'Space Grotesk',-apple-system,sans-serif;color:var(--ink)}
+    font-family:'Syne',-apple-system,sans-serif;color:var(--ink)}
   .card{background:var(--surface);border:3px solid var(--line);border-radius:8px;padding:40px 36px;
-    box-shadow:6px 6px 0 var(--shadow);text-align:center;max-width:340px;margin:16px}
+    box-shadow:6px 6px 0 var(--line);text-align:center;max-width:340px;margin:16px}
   .mark{width:56px;height:56px;margin:0 auto 18px;background:var(--surface);border:3px solid var(--line);
     border-radius:8px;display:grid;place-items:center;transform:rotate(-4deg);box-shadow:4px 4px 0 var(--accent)}
   h1{font-size:19px;margin:0 0 6px;text-transform:uppercase;letter-spacing:-.01em}
   p{font-size:13px;color:var(--ink-2);margin:0 0 26px;line-height:1.6}
-  a.btn{display:inline-flex;align-items:center;gap:9px;background:var(--accent);color:#fff;text-decoration:none;
-    border:3px solid var(--line);border-radius:6px;padding:11px 22px;font-weight:700;font-size:12.5px;
-    text-transform:uppercase;letter-spacing:.02em;box-shadow:4px 4px 0 var(--shadow);
-    transition:transform .1s,box-shadow .1s}
-  a.btn:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 var(--shadow)}
-  a.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+
+  /* ปุ่มดำลอยเหนือแผ่นสีซ้อนสองชั้น — ธีมเดียวกับปุ่มหลักในตัวแอป */
+  .btn-stack{position:relative;display:inline-flex}
+  .btn-stack .layer{position:absolute;inset:0;border-radius:10px;border:2px solid var(--line)}
+  .btn-stack .layer.l1{background:var(--accent);transform:translate(5px,5px)}
+  .btn-stack .layer.l2{background:var(--blue-soft);transform:translate(2.5px,2.5px)}
+  .btn-stack .face{position:relative;display:inline-flex;align-items:center;gap:9px;
+    background:var(--ink);color:#fff;border:2px solid var(--line);border-radius:10px;
+    padding:11px 22px;font-family:inherit;font-weight:700;font-size:12.5px;text-decoration:none;
+    text-transform:uppercase;letter-spacing:.02em;transition:transform .1s}
+  .btn-stack:active .face{transform:translate(2px,2px)}
 </style>
 </head>
 <body>
@@ -40,7 +46,11 @@
     </div>
     <h1>myDashboard</h1>
     <p>แดชบอร์ดส่วนตัว — เข้าได้เฉพาะเจ้าของเท่านั้น</p>
-    <a class="btn" href="/auth/site/login">เข้าสู่ระบบด้วย Google</a>
+    <a class="btn-stack" href="/auth/site/login">
+      <span class="layer l1" aria-hidden="true"></span>
+      <span class="layer l2" aria-hidden="true"></span>
+      <span class="face">เข้าสู่ระบบด้วย Google</span>
+    </a>
   </div>
 </body>
 </html>

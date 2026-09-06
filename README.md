@@ -9,6 +9,7 @@
 ```bash
 npm install
 cp .env.example .env    # เติมค่า credential ต่าง ๆ — ดูขั้นตอนละเอียดใน SETUP.md
+npm run build            # build หน้าเว็บ (React) ครั้งแรก — ต้องรันใหม่ทุกครั้งที่แก้โค้ดใน web/
 npm start
 ```
 
@@ -47,42 +48,28 @@ SESSION_SECRET=<สุ่มด้วยคำสั่งใน SETUP.md>
 
 ```
 myDashboard/
+├── web/                      หน้าเว็บ — React + Tailwind (Vite) ดูรายละเอียดใน web/README.md
+│   └── dist/                 ผลลัพธ์หลัง npm run build — server/index.js serve โฟลเดอร์นี้
 ├── public/
-│   ├── index.html           ตัวแดชบอร์ด — HTML ไฟล์เดียว ไม่มี build step
-│   └── login.html           หน้า login (โชว์เฉพาะตอนเปิดฟีเจอร์ login)
+│   └── login.html            หน้า login (โชว์เฉพาะตอนเปิดฟีเจอร์ login)
 ├── server/
-│   ├── index.js             express routes + cache 60 วิ
-│   ├── google.js            OAuth2 flow (Gmail/Calendar) + เก็บ/รีเฟรช token.json
-│   ├── auth.js              OAuth2 flow แยกต่างหากสำหรับ login เข้าเว็บ
-│   ├── gmail.js             summary() / inbox()
-│   ├── calendar.js          month() + สร้าง/แก้/ลบนัด
-│   ├── slack.js             dms() / feed()
-│   ├── discord.js           feed() — REST API ด้วย bot token
-│   ├── github.js            overview() — GraphQL
-│   └── line.js              digest() — สรุปงานส่งเข้า LINE
-└── SETUP.md                 ขั้นตอนเซ็ตอัปทีละขั้น
+│   ├── index.js              express routes + cache 60 วิ
+│   ├── google.js             OAuth2 flow (Gmail/Calendar) + เก็บ/รีเฟรช token.json
+│   ├── auth.js               OAuth2 flow แยกต่างหากสำหรับ login เข้าเว็บ
+│   ├── gmail.js              summary() / inbox()
+│   ├── calendar.js           month() + สร้าง/แก้/ลบนัด
+│   ├── slack.js              dms() / feed()
+│   ├── discord.js            feed() — REST API ด้วย bot token
+│   ├── github.js             overview() — GraphQL
+│   └── line.js               digest() — สรุปงานส่งเข้า LINE
+└── SETUP.md                  ขั้นตอนเซ็ตอัปทีละขั้น
 ```
 
 ## ทำงานยังไง (สำหรับคนอยากอ่านโค้ดต่อ)
 
-`public/index.html` ตรวจตอนโหลดว่ารันอยู่ที่ไหน แล้วเลือก adapter ให้เอง — รันเป็นเว็บที่มี backend ของตัวเอง (standalone) หรือรันเป็น artifact ใน Claude Cowork ก็ได้ ชั้น render ไม่รู้ความต่างระหว่างสองโหมดนี้เลย เพราะ adapter ทั้งคู่คืนข้อมูลรูปแบบเดียวกัน
+หน้าเว็บ (`web/`) เป็น React SPA ธรรมดา คุยกับ backend ผ่าน `/api/*` เท่านั้น — โครงสร้างโค้ดฝั่งนี้อธิบายไว้ใน [web/README.md](web/README.md)
 
-```js
-const HAS_COWORK = typeof window.cowork?.callMcpTool === 'function';
-const src = HAS_COWORK ? coworkSource : httpSource;
-```
-
-| ข้อมูล | โหมด standalone | โหมด Cowork |
-|---|---|---|
-| `src.summary()` | `GET /api/mail/summary` | `list_labels` แล้ว normalize |
-| `src.inbox()` | `GET /api/mail/inbox` | `search_threads` + map |
-| `src.slack()` | `GET /api/slack` | `slack_search_public_and_private` + `parseSlack()` |
-| `src.discord()` | `GET /api/discord` | ไม่รองรับ — artifact เรียก Discord bot token ตรงไม่ได้ |
-| `src.github()` | `GET /api/github` | ไม่รองรับ — ไม่มี MCP connector ของ GitHub |
-| `src.calendar(เดือน)` | `GET /api/calendar?month=` | ไม่รองรับ — artifact เรียก Calendar API ตรงไม่ได้ |
-| `src.calCreate/calUpdate/calDelete()` | `POST`/`PATCH`/`DELETE /api/calendar` | ไม่รองรับ |
-
-### API ทั้งหมด (โหมด standalone)
+### API ทั้งหมด
 
 | Route | คืนอะไร |
 |---|---|
@@ -110,20 +97,6 @@ const src = HAS_COWORK ? coworkSource : httpSource;
 
 รายละเอียดปลีกย่อยเชิงเทคนิค (scope ที่ขอ, ทำไมเลือก GraphQL/REST, cache, ฯลฯ) — ดูคอมเมนต์ในซอร์สโค้ดแต่ละไฟล์ เขียนอธิบายไว้ตรงจุดที่ตัดสินใจ
 
-### โหมด Cowork
-
-เรียก MCP tool ผ่าน `window.cowork.callMcpTool()` ซึ่งมีให้ใช้เฉพาะตอนรันเป็น artifact ใน Claude
-
-Server ID ของ connector ไม่ได้ฝังไว้ในไฟล์ (จะได้ไม่ติดขึ้น git) แต่อ่านจาก `localStorage` ตั้งครั้งเดียวที่ console ของเบราว์เซอร์:
-
-```js
-localStorage.setItem('mbx.cowork', JSON.stringify({
-  gmail: 'mcp__<id ของคุณ>__', slack: 'mcp__<id ของคุณ>__'
-}))
-```
-
-ID จะเปลี่ยนทุกครั้งที่ reconnect connector — ตั้งใหม่เมื่อแท็บขึ้นว่ายังไม่ได้ตั้ง
-
 ## ข้อจำกัดที่ควรรู้
 
 - **1 เจ้าของต่อ 1 instance** — ไม่ใช่ระบบหลายผู้ใช้ ถ้าอยากให้คนอื่นใช้ ต้องแยกรัน instance ของตัวเอง (login ก็รองรับแค่ 1 อีเมลต่อ instance เหมือนกัน)
@@ -131,7 +104,6 @@ ID จะเปลี่ยนทุกครั้งที่ reconnect connec
 - Discord/Slack ดึงข้อความย้อนหลังจำกัดจำนวน — ห้อง/DM ที่คึกคักมากอาจเห็นไม่ครบ 7 วัน
 - ปฏิทินดึงเฉพาะอันที่ **เปิดแสดงอยู่** ใน Google Calendar ถ้านัดบางอันไม่โผล่ ให้ไปติ๊กเปิดปฏิทินนั้นในเว็บ Google Calendar ก่อน
 - OAuth consent screen สถานะ Testing จะทำให้ refresh token หมดอายุใน 7 วัน ต้อง authorize ใหม่ (กด Publish app ถ้าอยากใช้ยาว ๆ)
-- โหมด Cowork ไม่มีแท็บ GitHub, ปฏิทิน และ Discord เพราะเรียก API พวกนี้ตรงจาก artifact ไม่ได้
 
 ## ความปลอดภัย
 
