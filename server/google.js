@@ -6,8 +6,15 @@ import { google } from 'googleapis';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TOKEN_PATH = path.join(ROOT, 'token.json');
 
-// อ่านอย่างเดียวพอ — dashboard ไม่แก้อะไรในกล่องจดหมาย
-export const SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
+// ขอ modify เพราะแดชบอร์ดกดอ่านแล้ว/ลบอีเมลได้ (ลบ = ย้ายเข้าถังขยะ ยังกู้คืนได้ ไม่ใช่ลบถาวร)
+export const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.modify';
+
+// ปฏิทินต้องเขียนได้ (เพิ่ม/แก้/ลบนัด) แต่ขอเท่าที่ใช้ — events เขียนได้เฉพาะตัวนัด
+// ส่วน calendar.readonly ใช้แค่ดึงรายชื่อปฏิทินกับสีของแต่ละอัน
+export const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+const CALENDAR_LIST_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
+
+export const SCOPES = [GMAIL_SCOPE, CALENDAR_SCOPE, CALENDAR_LIST_SCOPE];
 
 export function oauthClient() {
   const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI } = process.env;
@@ -41,13 +48,15 @@ export async function saveTokenFromCode(code) {
   const client = oauthClient();
   const { tokens } = await client.getToken(code);
   await writeToken(tokens);
+  // ทิ้งของเก่าทิ้ง ไม่งั้นยัง cache token ชุดก่อนไว้ — สำคัญตอน authorize ซ้ำเพื่อขอ scope เพิ่ม
+  cached = null;
   return tokens;
 }
 
-let cached = null;
+let cached = null;   // { client, scopes:Set }
 
-/** คืน OAuth client ที่พร้อมใช้ หรือ null ถ้ายังไม่ได้ authorize */
-export async function authedClient() {
+/** อ่าน token.json แล้วประกอบ client — คืน null ถ้ายังไม่ได้ authorize */
+async function load() {
   if (cached) return cached;
   let tokens;
   try {
@@ -63,14 +72,30 @@ export async function authedClient() {
     try { await writeToken({ ...tokens, ...t }); } catch {}
   });
 
-  cached = client;
-  return client;
+  cached = { client, scopes: new Set(String(tokens.scope || '').split(' ').filter(Boolean)) };
+  return cached;
+}
+
+/** คืน OAuth client ที่พร้อมใช้ หรือ null ถ้ายังไม่ได้ authorize */
+export async function authedClient() {
+  return (await load())?.client ?? null;
+}
+
+/** token ที่มีอยู่ได้สิทธิ์นี้มาหรือยัง — token เก่าที่ออกก่อนเพิ่ม scope จะยังไม่มี */
+export async function hasScope(scope) {
+  return Boolean((await load())?.scopes.has(scope));
 }
 
 export async function gmailClient() {
   const auth = await authedClient();
   if (!auth) return null;
   return google.gmail({ version: 'v1', auth });
+}
+
+export async function calendarClient() {
+  const auth = await authedClient();
+  if (!auth || !(await hasScope(CALENDAR_SCOPE))) return null;
+  return google.calendar({ version: 'v3', auth });
 }
 
 export function forgetToken() {

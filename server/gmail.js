@@ -1,4 +1,4 @@
-import { gmailClient } from './google.js';
+import { gmailClient, hasScope, GMAIL_SCOPE } from './google.js';
 
 /* ---------- helpers ---------- */
 
@@ -37,10 +37,10 @@ const stripHtml = html => html
 
 /**
  * เนื้อความของอีเมลเป็นข้อความล้วน
- * ใบเสร็จจากธนาคารไทยหลายเจ้าส่งมาเป็น text/html อย่างเดียว ไม่มี text/plain เลย
- * ถ้าเก็บแต่ text/plain จะได้ค่าว่างแล้วอ่านยอดไม่ได้ทั้งฉบับ
+ * บางอีเมลส่งมาเป็น text/html อย่างเดียว ไม่มี text/plain เลย
+ * ถ้าเก็บแต่ text/plain จะได้ค่าว่างแล้วอ่านเนื้อหาไม่ได้ทั้งฉบับ
  */
-export function bodyText(payload) {
+function bodyText(payload) {
   const plain = collect(payload, 'text/plain').join('\n').trim();
   if (plain) return plain;
   return stripHtml(collect(payload, 'text/html').join('\n'));
@@ -101,6 +101,7 @@ export async function inbox(limit = 40) {
   return msgs.filter(Boolean).map(m => {
     const from = emailOf(header(m, 'From'));
     return {
+      id: m.id,
       name: displayName(from),
       domain: domainOf(from),
       subject: header(m, 'Subject'),
@@ -111,142 +112,57 @@ export async function inbox(limit = 40) {
   });
 }
 
-/* ---------- spending ---------- */
-
-const NUM = '([0-9][\\d,]*(?:\\.\\d{1,2})?)';
-
-/* ตัวเลขที่มีสัญลักษณ์เงินติดอยู่ — หมายเหตุ: ห้ามใช้ \b ปิดท้ายคำไทย
-   เพราะ \b ใน JS นับเฉพาะ [A-Za-z0-9_] ทำให้ "643.75 บาท " ไม่ match */
-const CUR_RE = new RegExp(
-  `(?:US\\s*)?\\$\\s*${NUM}` +
-  `|฿\\s*${NUM}` +
-  `|${NUM}\\s*(?:บาท|บ\\.|THB\\b)`, 'gi');
-
-/* ตัวเลขที่ตามหลังคำกำกับ — จับสกุลเงินได้ทั้งหน้าและหลังตัวเลข */
-const AMT_TAIL = `\\s*(?:[:=]|คือ)?\\s*(฿|\\$|THB|USD)?\\s*${NUM}\\s*(฿|บาท|บ\\.|THB|USD|\\$)?`;
-
-/* คำกำกับที่ชัดเจนว่าเป็นยอดเงิน เชื่อได้เลยแม้ไม่มีสัญลักษณ์สกุล */
-const LABEL_STRONG = new RegExp(
-  '(?:ยอดชำระ|ยอดรวม|ยอดเงิน|ยอดสุทธิ|รวมชำระ(?:ทั้งหมด)?|จำนวนเงิน|ราคารวม' +
-  '|grand\\s*total|total(?:\\s*amount)?|amount(?:\\s*(?:charged|paid|due))?|charged)' + AMT_TAIL, 'gi');
-
-/* คำกำกับกำกวม — "จำนวน 1 ชิ้น" ในอีเมลแจ้งส่งของก็เข้าเกณฑ์นี้
-   จึงรับเฉพาะตอนที่มีสัญลักษณ์สกุลเงินกำกับอยู่ด้วย เช่น "จำนวน 1,336.16 บ." */
-const LABEL_WEAK = new RegExp('(?:จำนวน|ราคา|รวม)' + AMT_TAIL, 'gi');
-
-/* ตัวเลขที่อยู่ใกล้คำพวกนี้ไม่ใช่ยอดที่จ่าย — เช่น "วงเงินคงเหลือใช้ได้ 19,511.80 บ." */
-const NOT_A_CHARGE = /วงเงิน|คงเหลือ|ยอดยกมา|balance|available|remaining|limit|คะแนน|point|ส่วนลด|discount|ค่าธรรมเนียม|fee/i;
-
-const toNum = s => parseFloat(String(s).replace(/,/g, ''));
-const sane = v => v > 0 && v < 1e7;
-
-/** เดาสกุลเงินจากทั้งฉบับ เมื่อตัวเลขนั้นไม่มีสัญลักษณ์ติดมา */
-function guessCurrency(text) {
-  if (/฿|บาท|\bบ\.|\bTHB\b/.test(text)) return 'THB';
-  if (/\$|\bUSD\b/.test(text)) return 'USD';
-  return 'THB';   // ใบเสร็จภาษาไทยที่ไม่ระบุสกุล ส่วนใหญ่เป็นบาท
-}
-const curOf = sym =>
-  !sym ? null : /฿|บาท|บ\.|THB/i.test(sym) ? 'THB' : 'USD';
-
-/**
- * อ่านยอดเงินจากเนื้อความใบเสร็จ
- *
- * ลำดับความน่าเชื่อถือ:
- *   1. ตัวเลขที่มีคำกำกับว่าเป็นยอดชำระ (ยอดชำระ / จำนวนเงิน / Total / Amount)
- *      แม่นกว่ามาก เพราะบิลบัตรเครดิตมักมี "วงเงินคงเหลือ" ที่มากกว่ายอดจริง
- *   2. ถ้าไม่มีคำกำกับ ค่อยถอยไปใช้ตัวเลขที่มีสัญลักษณ์เงิน แล้วหยิบตัวที่มากสุด
- */
-function labelledAmounts(text, re, needCurrency) {
-  const out = [];
-  let m;
-  re.lastIndex = 0;
-  while ((m = re.exec(text)) !== null) {
-    const cur = curOf(m[1] || m[3]);
-    if (needCurrency && !cur) continue;
-    // ดูข้อความข้างหน้าเผื่อเป็น "วงเงินคงเหลือ" หรือ "ส่วนลด"
-    if (NOT_A_CHARGE.test(text.slice(Math.max(0, m.index - 24), m.index + m[0].length))) continue;
-    const val = toNum(m[2]);
-    if (sane(val)) out.push({ val, cur });
-  }
-  return out;
-}
-
-export function extractAmount(text) {
-  if (!text) return null;
-
-  const labelled = labelledAmounts(text, LABEL_STRONG, false);
-  const fallbackLabelled = labelled.length ? labelled : labelledAmounts(text, LABEL_WEAK, true);
-
-  if (fallbackLabelled.length) {
-    const best = fallbackLabelled.sort((a, b) => b.val - a.val)[0];
-    return { cur: best.cur || guessCurrency(text), val: best.val };
-  }
-
-  const usd = [], thb = [];
-  let m;
-  CUR_RE.lastIndex = 0;
-  while ((m = CUR_RE.exec(text)) !== null) {
-    if (m[1]) usd.push(toNum(m[1]));
-    else if (m[2]) thb.push(toNum(m[2]));
-    else if (m[3]) thb.push(toNum(m[3]));
-  }
-  const pick = a => a.filter(sane).sort((x, y) => y - x)[0];
-  const u = pick(usd), t = pick(thb);
-  if (u != null) return { cur: 'USD', val: u };
-  if (t != null) return { cur: 'THB', val: t };
-  return null;
-}
-
-/* ธนาคารไทยไม่ได้ใช้คำอังกฤษเลย เช่น "แจ้งรายการชำระเงินสำเร็จ" ของ CardX
-   จึงต้องใส่คำไทยด้วย ไม่งั้นบิลธนาคารหลุดหมด
-
-   Gmail ตัดคำไทยเป็น token — "แจ้งรายการ" ไม่แมตช์ "แจ้งการทำรายการ"
-   เพราะเป็นคนละ token กัน ธนาคารเดียวกันยังใช้หลายสำนวนในอีเมลคนละแบบ
-   ถ้าเจอบิลที่ไม่ขึ้นในแดชบอร์ด ให้เพิ่มคำจากหัวข้ออีเมลนั้นลงในลิสต์นี้ */
-export const SPEND_Q =
-  'in:anywhere {' +
-  'subject:receipt subject:invoice subject:renew subject:payment subject:billing ' +
-  'subject:charged subject:statement subject:"order confirmation" ' +
-  'subject:ใบเสร็จ subject:ใบกำกับภาษี subject:ชำระเงิน subject:ชำระค่า ' +
-  'subject:โอนเงิน subject:แจ้งรายการ subject:เติมเงิน subject:ค่าสินค้า ' +
-  'subject:ตัดบัญชี subject:หักบัญชี subject:คำสั่งซื้อ subject:ต่ออายุ ' +
-  'subject:ทำรายการ subject:ใช้จ่าย' +
-  '} -in:draft -in:sent newer_than:1y';   // กราฟรายเดือนจะได้ไม่กินช่วงหลายปี
-
-/** อัตราแลกเปลี่ยนคงที่ ใช้รวมยอดสองสกุลให้เทียบกันได้ — ไม่ได้ดึงเรตสด */
-export const THB_PER_USD = Number(process.env.THB_PER_USD) || 36;
-
-export async function spend(limit = 30) {
+/** เนื้อหาเต็มของอีเมลฉบับเดียว — ใช้ตอนกดเปิดอ่านจากรายการ */
+export async function read(id) {
   const gmail = await gmailClient();
   if (!gmail) return null;
 
-  const { data } = await gmail.users.messages.list({
-    userId: 'me', q: SPEND_Q, maxResults: 60
+  const { data: msg } = await gmail.users.messages.get({ userId: 'me', id, format: 'full' });
+  const from = emailOf(header(msg, 'From'));
+  return {
+    id: msg.id,
+    name: displayName(from),
+    from: header(msg, 'From'),
+    subject: header(msg, 'Subject'),
+    date: new Date(Number(msg.internalDate)).toISOString(),
+    body: bodyText(msg.payload).slice(0, 20_000)   // กันอีเมลยาวผิดปกติทำหน้าเว็บอืด
+  };
+}
+
+/* ---------- แก้ไขอีเมล (อ่านแล้ว / ลบ) ---------- */
+
+const MAX_BATCH = 50;   // เท่ากับเพดานที่ inbox() ดึงมาแสดง กันเผลอส่ง id เยอะเกินจำเป็นในคำขอเดียว
+
+function pickIds(list) {
+  const arr = Array.isArray(list) ? list.filter(Boolean).slice(0, MAX_BATCH) : [];
+  if (!arr.length) throw new Error('ไม่มีอีเมลที่เลือก');
+  return arr;
+}
+
+/** token เก่าที่ออกก่อนเพิ่มสิทธิ์แก้ไข (gmail.modify) จะยังทำสองอย่างนี้ไม่ได้ */
+async function assertWritable() {
+  if (!(await hasScope(GMAIL_SCOPE))) {
+    throw new Error('ต้องให้สิทธิ์แก้ไขอีเมลก่อน — กด "เชื่อม Gmail" ใหม่อีกครั้งในแท็บ "เชื่อมต่ออื่น ๆ"');
+  }
+}
+
+/** เอา label UNREAD ออก — ทำเครื่องหมายว่าอ่านแล้ว */
+export async function markRead(messageIds) {
+  const gmail = await gmailClient();
+  if (!gmail) return null;
+  await assertWritable();
+  await gmail.users.messages.batchModify({
+    userId: 'me',
+    requestBody: { ids: pickIds(messageIds), removeLabelIds: ['UNREAD'] }
   });
+  return { ok: true };
+}
 
-  const ids = (data.messages || []).slice(0, limit);
-
-  // ดึงขนานกัน — ทีละฉบับช้าเกินไปเมื่อขยับเพดานจาก 12 เป็น 30
-  const bills = (await Promise.all(ids.map(async ({ id }) => {
-    let msg;
-    try {
-      msg = (await gmail.users.messages.get({ userId: 'me', id, format: 'full' })).data;
-    } catch {
-      return null;
-    }
-    const amt = extractAmount(bodyText(msg.payload));
-    if (!amt) return null;
-
-    const from = emailOf(header(msg, 'From'));
-    return {
-      name: displayName(from),
-      domain: domainOf(from),
-      subject: header(msg, 'Subject'),
-      date: new Date(Number(msg.internalDate)).toISOString(),
-      ...amt
-    };
-  }))).filter(Boolean).sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  return { bills, scanned: ids.length, rate: THB_PER_USD };
+/** ย้ายเข้าถังขยะ — กู้คืนได้ใน Gmail เอง ไม่ใช่ลบถาวร */
+export async function trash(messageIds) {
+  const gmail = await gmailClient();
+  if (!gmail) return null;
+  await assertWritable();
+  await Promise.all(pickIds(messageIds).map(id => gmail.users.messages.trash({ userId: 'me', id })));
+  return { ok: true };
 }
