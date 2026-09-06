@@ -1,62 +1,76 @@
 # myDashboard
 
-แดชบอร์ดรวม Gmail + Google Calendar + Slack + Discord + GitHub สำหรับดูภาพรวมงานประจำวัน — ดึงข้อมูลสดทุกครั้งที่เปิด
+แดชบอร์ดส่วนตัว รวมทุกอย่างที่ต้องเช็คทุกวันไว้หน้าเดียว: Gmail, Google Calendar, Slack, Discord และ GitHub — เปิดมาก็เห็นภาพรวม ไม่ต้องสลับแอปไปมา
 
-หน้าเดียวกันรันได้สองแบบ: เป็นเว็บที่มี backend ของตัวเอง (standalone) หรือเป็น artifact ใน Claude Cowork
+ข้อมูลทั้งหมดดึงสดจากบัญชีจริงของคุณทุกครั้งที่เปิดหน้า ไม่มีฐานข้อมูลเก็บสำเนาไว้ที่ไหน
 
-## เริ่มใช้
+## เริ่มใช้งาน
 
 ```bash
 npm install
-cp .env.example .env    # เติมค่า — ดูขั้นตอนใน SETUP.md
+cp .env.example .env    # เติมค่า credential ต่าง ๆ — ดูขั้นตอนละเอียดใน SETUP.md
 npm start
 ```
 
-เปิด http://localhost:3000 แล้วกด **เชื่อม Gmail** ครั้งแรกครั้งเดียว (ปุ่มเดียวขอสิทธิ์ Gmail กับปฏิทินพร้อมกัน)
+เปิด http://localhost:3000 แล้วกด **เชื่อม Gmail** ครั้งแรกครั้งเดียว (ปุ่มเดียวขอสิทธิ์ทั้ง Gmail และ Calendar พร้อมกัน) ที่เหลือ (Slack, Discord, GitHub, LINE, Login) เป็นของเสริม เชื่อมเพิ่มได้ทีหลังเมื่อไหร่ก็ได้
 
-ขั้นตอนขอ credential จาก Google, Slack และ GitHub อยู่ใน **[SETUP.md](SETUP.md)**
+ทุกฟีเจอร์ **เปิด/ปิดเองอัตโนมัติตามค่าที่ตั้งใน `.env`** — ไม่ตั้งค่าของอันไหน แท็บนั้นก็แค่ไม่โชว์ ไม่มีอะไรพัง
 
-## โครงสร้าง
+วิธีขอ credential จาก Google / Slack / Discord / GitHub / LINE ทีละขั้นตอน อยู่ใน **[SETUP.md](SETUP.md)**
+
+## แต่ละแท็บมีอะไรบ้าง
+
+- **ภาพรวม** — สรุปตัวเลขสำคัญ (อีเมลค้าง, ข้อความ Slack ถึงคุณ, นัดวันนี้) พร้อมรายการที่ต้องตามอ่าน
+- **กล่องจดหมาย** — อีเมลที่ค้างใน Inbox แยกตามป้ายกำกับ กดอ่าน/ลบได้จากในหน้าเว็บเลย
+- **ปฏิทิน** — ตารางรายเดือนจากทุกปฏิทินที่เปิดอยู่ใน Google Calendar ดู/เพิ่ม/แก้/ลบนัดได้ — **แก้จริง สะท้อนกลับเข้า Google Calendar ทันที**
+- **Slack** — DM ที่ถึงคุณและความเคลื่อนไหวในช่องที่คุณอยู่ ต่อได้มากกว่า 1 workspace พร้อมกัน
+- **Discord** — ความเคลื่อนไหวในห้องที่เลือกไว้ (ไม่รองรับ DM เพราะข้อจำกัดของ Discord — ดูหัวข้อข้อจำกัดด้านล่าง)
+- **GitHub** — ปฏิทิน contribution แบบเดียวกับหน้าโปรไฟล์ GitHub และคอมมิทล่าสุด
+- **เชื่อมต่ออื่น ๆ** — ดูว่าอะไรเชื่อมอยู่บ้าง เชื่อม/ยกเลิก Gmail และปุ่ม "ส่งสรุปเข้า LINE" (สรุปงานวันนี้แบบสั้น ๆ push เข้า LINE ตัวเอง)
+
+## การเข้าสู่ระบบ (สำหรับ deploy ให้คนอื่นเข้าถึง URL ได้)
+
+ปกติแดชบอร์ดนี้**ไม่มีระบบ login** เพราะออกแบบมาให้รันบนเครื่องตัวเองคนเดียว แต่ถ้าจะ deploy ขึ้นโดเมนสาธารณะ (เช่น `notify.siwat.me`) ต้องกันไม่ให้คนอื่นเข้ามาเห็นอีเมล/แชทของคุณ
+
+ตั้งค่า 2 ตัวนี้ใน `.env` เพื่อเปิดระบบ login:
+
+```
+ALLOWED_EMAIL=your@email.com
+SESSION_SECRET=<สุ่มด้วยคำสั่งใน SETUP.md>
+```
+
+ตั้งแล้ว ทุกหน้า/ทุก API จะต้อง **login ด้วย Google ก่อน และต้องเป็นอีเมลนั้นเท่านั้นถึงจะเข้าได้** — นี่เป็น OAuth คนละตัวกับที่ใช้อ่าน Gmail (ขอแค่สิทธิ์รู้อีเมล ไม่แตะข้อมูลอะไรเลย) ไม่ตั้งค่าไว้ = แอปเปิดให้เข้าได้เหมือนเดิม
+
+ขั้นตอนตั้งค่าเต็ม ๆ (Google Cloud Console, redirect URI) อยู่ใน **[SETUP.md §6](SETUP.md)**
+
+## โครงสร้างโปรเจกต์
 
 ```
 myDashboard/
-├── public/index.html       ตัวแดชบอร์ด — HTML ไฟล์เดียว ไม่มี build step
+├── public/
+│   ├── index.html           ตัวแดชบอร์ด — HTML ไฟล์เดียว ไม่มี build step
+│   └── login.html           หน้า login (โชว์เฉพาะตอนเปิดฟีเจอร์ login)
 ├── server/
-│   ├── index.js            express routes + cache 60 วิ
-│   ├── google.js           OAuth2 flow + เก็บ/รีเฟรช token.json
-│   ├── gmail.js            summary() / inbox()
-│   ├── slack.js            dms() / feed()
-│   ├── discord.js          feed() — REST API ด้วย bot token
-│   └── github.js           overview() — GraphQL
-└── SETUP.md                ขั้นตอนเซ็ตอัปทีละขั้น
+│   ├── index.js             express routes + cache 60 วิ
+│   ├── google.js            OAuth2 flow (Gmail/Calendar) + เก็บ/รีเฟรช token.json
+│   ├── auth.js              OAuth2 flow แยกต่างหากสำหรับ login เข้าเว็บ
+│   ├── gmail.js             summary() / inbox()
+│   ├── calendar.js          month() + สร้าง/แก้/ลบนัด
+│   ├── slack.js             dms() / feed()
+│   ├── discord.js           feed() — REST API ด้วย bot token
+│   ├── github.js            overview() — GraphQL
+│   └── line.js              digest() — สรุปงานส่งเข้า LINE
+└── SETUP.md                 ขั้นตอนเซ็ตอัปทีละขั้น
 ```
 
-## หน้าตา
+## ทำงานยังไง (สำหรับคนอยากอ่านโค้ดต่อ)
 
-**ภาพรวม** — KPI 3 ตัว (Inbox ค้าง, Slack ถึงคุณ, ยังไม่ได้อ่าน) + สรุปสำคัญของแต่ละหัวข้อ พร้อมนัดที่จะถึงและกราฟช่อง Slack ที่คึกคัก
-
-**กล่องจดหมาย** — อีเมลที่ค้างใน Inbox และจำนวนในแต่ละกล่อง
-
-**ปฏิทิน** — ตารางรายเดือนจากทุกปฏิทินที่เปิดแสดงอยู่ใน Google Calendar เดินหน้าถอยหลังทีละเดือนได้ คลิกวันเพื่อดูรายละเอียดนัดของวันนั้น คลิกนัดเพื่อแก้ และมีปุ่มเพิ่ม/ลบ — **เขียนกลับเข้า Google Calendar จริง** ปฏิทินที่แชร์มาแบบอ่านอย่างเดียวจะไม่มีปุ่มแก้/ลบ
-
-**Slack** — DM ที่ถึงคุณ (จัดกลุ่มตามคนส่ง) และความเคลื่อนไหวในช่องที่คุณอยู่ 7 วันล่าสุด (จัดกลุ่มตามช่อง) แต่ละกลุ่มเรียงตามความคึกคัก โชว์ข้อความล่าสุดไม่กี่อันแล้วกางเพิ่มได้ สีหัวกลุ่มตรงกับสีในกราฟ — ต่อได้มากกว่า 1 workspace พร้อมกัน (ดู `SLACK_USER_TOKENS` ใน SETUP.md)
-
-**Discord** — ความเคลื่อนไหวในห้องที่ตั้งไว้ 7 วันล่าสุด จัดกลุ่มตามห้องเหมือนแท็บ Slack **ไม่มี DM** เพราะบอทเป็นบัญชีแยกจากคุณ อ่านข้อความส่วนตัวไม่ได้ตามข้อจำกัดของ Discord
-
-**GitHub** — ปฏิทิน contribution ย้อนหลัง 1 ปีแบบเดียวกับหน้าโปรไฟล์ GitHub และคอมมิทล่าสุดจาก repo ที่ push ล่าสุด **รวมคอมมิทของคนอื่นในโปรเจกต์ที่ทำร่วมกัน** แต่ละแถวบอกว่าใครเขียน คอมมิทของเจ้าของ token จะมีป้าย "คุณ" กำกับ
-
-**เชื่อมต่ออื่น ๆ** — สถานะการเชื่อมต่อจริง (`/api/status`), ปุ่มเชื่อม/ยกเลิก Gmail, และปุ่ม **"ส่งสรุปเข้า LINE ตอนนี้"** — รวม Inbox ค้าง/นัดวันนี้/Slack ที่ถึงคุณ เป็นข้อความสั้น ๆ push เข้า LINE ของตัวเอง (กดเองเท่านั้น ยังไม่มีตั้งเวลาส่งอัตโนมัติ)
-
-## ทำงานยังไง
-
-`public/index.html` ตรวจตอนโหลดว่ารันอยู่ที่ไหน แล้วเลือก adapter ให้เอง
+`public/index.html` ตรวจตอนโหลดว่ารันอยู่ที่ไหน แล้วเลือก adapter ให้เอง — รันเป็นเว็บที่มี backend ของตัวเอง (standalone) หรือรันเป็น artifact ใน Claude Cowork ก็ได้ ชั้น render ไม่รู้ความต่างระหว่างสองโหมดนี้เลย เพราะ adapter ทั้งคู่คืนข้อมูลรูปแบบเดียวกัน
 
 ```js
 const HAS_COWORK = typeof window.cowork?.callMcpTool === 'function';
 const src = HAS_COWORK ? coworkSource : httpSource;
 ```
-
-adapter สองตัวคืน shape เดียวกัน ชั้น render จึงไม่รู้จักโหมด
 
 | ข้อมูล | โหมด standalone | โหมด Cowork |
 |---|---|---|
@@ -68,42 +82,39 @@ adapter สองตัวคืน shape เดียวกัน ชั้น 
 | `src.calendar(เดือน)` | `GET /api/calendar?month=` | ไม่รองรับ — artifact เรียก Calendar API ตรงไม่ได้ |
 | `src.calCreate/calUpdate/calDelete()` | `POST`/`PATCH`/`DELETE /api/calendar` | ไม่รองรับ |
 
-### โหมด standalone
-
-express ใน `server/` เรียก Gmail API, Slack Web API และ Discord REST API ตรง ๆ
+### API ทั้งหมด (โหมด standalone)
 
 | Route | คืนอะไร |
 |---|---|
-| `GET /api/status` | `{gmail, calendar, slack, github, discord, line}` — ทั้งหมดเป็น bool |
+| `GET /api/status` | `{gmail, gmailWrite, calendar, slack, github, discord, line, loginEnabled}` — ทั้งหมดเป็น bool |
 | `GET /api/mail/summary` | `{inbox, unread, trash, labels: [{name, threads, messages, unread, color}]}` |
 | `GET /api/mail/inbox` | `[{name, domain, subject, date, unread, isLinkedIn}]` |
+| `GET /api/mail/message/:id` | เนื้อหาอีเมลฉบับเต็ม |
+| `POST /api/mail/read` | mark เป็นอ่านแล้ว — body `{id}` |
+| `POST /api/mail/trash` | ย้ายเข้าถังขยะ — body `{id}` |
 | `GET /api/slack` | `{dms: [], feed: []}` — แต่ละตัว `{chan, isDm, author, text, ts}` |
 | `GET /api/discord` | `[{chan, isDm: false, author, text, ts}]` — ข้อความจากห้องใน `DISCORD_CHANNEL_IDS` |
-| `POST /api/line/digest` | รวม Inbox/นัดวันนี้/Slack เป็นข้อความ แล้ว push เข้า `LINE_USER_ID` — คืน `{ok: true}` |
 | `GET /api/github` | `{login, total, weeks, commits}` — `weeks` คือปฏิทิน, `commits[].mine` บอกว่าเป็นคอมมิทของเจ้าของ token ไหม |
-| `GET /api/calendar?month=YYYY-MM` | `{month, tz, calendars, events}` — `events[]` คือ `{id, calendarId, calendar, color, title, allDay, start, end, location, description, url, meet, guests, recurring, canWrite}` |
+| `GET /api/calendar?month=YYYY-MM` | `{month, tz, calendars, events}` |
 | `POST /api/calendar` | เพิ่มนัด — body `{calendarId, title, allDay, start, end, location, description}` |
 | `PATCH /api/calendar` | แก้นัด — body เหมือน POST + `eventId` |
 | `DELETE /api/calendar` | ลบนัด — body `{calendarId, eventId}` |
-| `GET /auth/google` | redirect ไปหน้า consent |
+| `POST /api/line/digest` | รวม Inbox/นัดวันนี้/Slack เป็นข้อความ push เข้า `LINE_USER_ID` |
+| `GET /auth/google` | redirect ไปหน้า consent (Gmail/Calendar) |
 | `GET /auth/google/callback` | แลก code เก็บลง `token.json` |
 | `POST /auth/google/logout` | ลบ `token.json` |
+| `GET /login` | หน้า login (เฉพาะตอนตั้ง `ALLOWED_EMAIL`/`SESSION_SECRET`) |
+| `GET /auth/site/login` | redirect ไปหน้า Google consent ของระบบ login เว็บ |
+| `GET /auth/site/callback` | เช็คอีเมลตรงกับ `ALLOWED_EMAIL` แล้วออกคุกกี้ session |
+| `POST /auth/site/logout` | ลบคุกกี้ session |
 
-- Gmail ขอ scope `gmail.readonly` อย่างเดียว — dashboard ไม่แก้อะไรในกล่องจดหมาย
-- ปฏิทินขอ `calendar.events` (เขียนได้เฉพาะตัวนัด) + `calendar.readonly` (ไว้ดึงรายชื่อและสีของปฏิทิน) — ไม่ขอ scope `calendar` เต็ม จึงสร้าง/ลบ "ปฏิทิน" ทั้งอันไม่ได้ แก้ได้แค่ "นัด"
-- นัดที่ทำซ้ำถูกกางด้วย `singleEvents: true` ทำให้แก้/ลบมีผลเฉพาะครั้งนั้น ไม่ลามทั้งชุด
-- วันสุดท้ายของนัดแบบทั้งวัน: Google เก็บ `end` แบบ**ไม่รวม**วันสุดท้าย แต่ API ของเราคืน/รับเป็นวันที่นับจริง (`server/calendar.js` บวกลบ 1 วันให้ตรงกลาง)
-- ถ้ายังไม่ได้ authorize route ของ Gmail จะคืน `{error, authUrl}` แทนที่จะพัง หน้าเว็บจะขึ้นปุ่มเชื่อมให้
-- Slack ตั้งใจไม่ใช้ `search.messages` เพราะ modifier อย่าง `to:me` เชื่อถือไม่ได้กับ raw API — ใช้ `conversations.list` + `conversations.history` แทน
-- GitHub ใช้ **GraphQL** ไม่ใช่ REST เพราะ contribution calendar ไม่มี endpoint ใน REST เลย ดึงปฏิทินกับคอมมิทมาในคิวรีเดียว
-- Discord ใช้ **bot token** ไม่ใช่ user token — บอทเป็นบัญชีแยกจากคุณ อ่านได้แค่ห้องที่เชิญเข้าไป (`DISCORD_CHANNEL_IDS`) อ่าน DM ส่วนตัวไม่ได้เลย ต่างจาก Slack ที่ใช้ user token แทนตัวคุณเอง
-- ผลลัพธ์ cache ในหน่วยความจำ 60 วินาทีต่อ key
+รายละเอียดปลีกย่อยเชิงเทคนิค (scope ที่ขอ, ทำไมเลือก GraphQL/REST, cache, ฯลฯ) — ดูคอมเมนต์ในซอร์สโค้ดแต่ละไฟล์ เขียนอธิบายไว้ตรงจุดที่ตัดสินใจ
 
 ### โหมด Cowork
 
 เรียก MCP tool ผ่าน `window.cowork.callMcpTool()` ซึ่งมีให้ใช้เฉพาะตอนรันเป็น artifact ใน Claude
 
-Server ID ของ connector ไม่ได้ฝังไว้ในไฟล์ (จะได้ไม่ติดขึ้น git) แต่อ่านจาก `localStorage` ตั้งครั้งเดียวที่ console ของเบราว์เซอร์
+Server ID ของ connector ไม่ได้ฝังไว้ในไฟล์ (จะได้ไม่ติดขึ้น git) แต่อ่านจาก `localStorage` ตั้งครั้งเดียวที่ console ของเบราว์เซอร์:
 
 ```js
 localStorage.setItem('mbx.cowork', JSON.stringify({
@@ -113,37 +124,27 @@ localStorage.setItem('mbx.cowork', JSON.stringify({
 
 ID จะเปลี่ยนทุกครั้งที่ reconnect connector — ตั้งใหม่เมื่อแท็บขึ้นว่ายังไม่ได้ตั้ง
 
-## กล่องอีเมล
+## ข้อจำกัดที่ควรรู้
 
-แท็บ "กล่องจดหมาย" อ่าน label ทั้งหมดจากบัญชีคุณเองตอนรัน แล้วแสดงเฉพาะกล่องที่มีอีเมลอยู่ เรียงตามจำนวนเธรด — ไม่มีรายชื่อกล่องฝังไว้ในโค้ด ใครเอาไปใช้ก็เห็นกล่องของตัวเอง
-
-สีของแถบข้างกล่องมาจากสีที่ตั้งไว้ใน Gmail (`color.backgroundColor`) ถ้ากล่องไหนไม่ได้ตั้งสี จะไล่สีจาน `PAL` ให้แทน
-
-## ข้อจำกัดที่รู้อยู่
-
-- `/api/slack` ยิง `conversations.history` ทีละห้อง จำกัดไว้ 25 ห้อง — โหลดรอบแรกช้า รอบต่อไปเข้า cache
+- **1 เจ้าของต่อ 1 instance** — ไม่ใช่ระบบหลายผู้ใช้ ถ้าอยากให้คนอื่นใช้ ต้องแยกรัน instance ของตัวเอง (login ก็รองรับแค่ 1 อีเมลต่อ instance เหมือนกัน)
+- Discord ไม่มี DM เพราะบอทเป็นบัญชีแยกจากคุณ อ่านข้อความส่วนตัวไม่ได้ตามข้อจำกัดของ Discord ToS
+- Discord/Slack ดึงข้อความย้อนหลังจำกัดจำนวน — ห้อง/DM ที่คึกคักมากอาจเห็นไม่ครบ 7 วัน
+- ปฏิทินดึงเฉพาะอันที่ **เปิดแสดงอยู่** ใน Google Calendar ถ้านัดบางอันไม่โผล่ ให้ไปติ๊กเปิดปฏิทินนั้นในเว็บ Google Calendar ก่อน
 - OAuth consent screen สถานะ Testing จะทำให้ refresh token หมดอายุใน 7 วัน ต้อง authorize ใหม่ (กด Publish app ถ้าอยากใช้ยาว ๆ)
 - โหมด Cowork ไม่มีแท็บ GitHub, ปฏิทิน และ Discord เพราะเรียก API พวกนี้ตรงจาก artifact ไม่ได้
-- Discord ไม่มี DM เพราะบอทอ่านข้อความส่วนตัวของคุณไม่ได้ — ถ้าอยากเห็น DM ต้องใช้ user token ซึ่งขัด Discord ToS จึงไม่ทำ
-- Discord ดึงข้อความล่าสุด 50 ข้อความต่อห้อง (ข้อจำกัดของ endpoint) แล้วกรองเฉพาะ 7 วันล่าสุด — ห้องที่คึกคักมากอาจเห็นไม่ครบ 7 วัน
-- ปฏิทินดึงเฉพาะอันที่ **เปิดแสดงอยู่** ใน Google Calendar (`selected`) ถ้านัดบางอันไม่โผล่ ให้ไปติ๊กเปิดปฏิทินนั้นในเว็บ Google Calendar ก่อน
-- ตารางเดือนโชว์ได้ 3 นัดต่อช่อง ที่เหลือขึ้นเป็น "+ อีก n" — คลิกวันนั้นเพื่อดูครบในการ์ดข้างล่าง
-- เวลาที่พิมพ์ตอนสร้างนัดถือเป็นเวลาของ `CALENDAR_TZ` (ค่าเริ่มต้น `Asia/Bangkok`) ถ้าใช้คนละโซนกับเบราว์เซอร์ เวลาจะเพี้ยน
-- ย้ายนัดข้ามปฏิทินไม่ได้ (ต้องใช้ `events.move`) — ช่องเลือกปฏิทินจึงถูกล็อกตอนแก้
-- โหมด Cowork: ผลลัพธ์จาก Slack เป็น markdown ไม่ใช่ JSON จึงต้อง parse ด้วย regex — ถ้าฝั่ง Slack เปลี่ยนรูปแบบ output จะพัง (โหมด standalone ไม่มีปัญหานี้ เพราะอ่าน JSON ตรง ๆ)
 
 ## ความปลอดภัย
 
-**แดชบอร์ดนี้ไม่มีระบบ login** — ใครเปิดหน้านี้ได้ ก็อ่านอีเมลกับ Slack ของเจ้าของได้ทันที และตั้งแต่มีแท็บปฏิทิน ยังเพิ่ม/ลบนัดในปฏิทินได้ด้วย ทุกอย่างข้างล่างสร้างบนสมมติฐานว่ามันรันอยู่บนเครื่องคุณเครื่องเดียว
+**โดย default แดชบอร์ดนี้ไม่มีระบบ login** — ใครเปิดหน้านี้ได้ก็อ่านอีเมลกับ Slack ของเจ้าของได้ทันที และแก้/ลบนัดในปฏิทินได้ด้วย ออกแบบมาให้รันบนเครื่องตัวเองคนเดียวเท่านั้น (ถ้าจะ deploy ให้คนอื่นเข้าถึงได้ ต้องเปิดฟีเจอร์ Login ก่อน — ดูหัวข้อด้านบน)
 
 | มาตรการ | อยู่ที่ไหน |
 |---|---|
-| ผูกกับ loopback อย่างเดียว เครื่องอื่นในวง LAN เข้าไม่ถึง | `HOST` default `127.0.0.1` ใน `server/index.js` |
-| `state` กัน CSRF บน OAuth callback | `server/index.js` + `consentUrl(state)` |
+| ผูกกับ loopback อย่างเดียว เครื่องอื่นในวง LAN เข้าไม่ถึง (ค่า default) | `HOST` default `127.0.0.1` ใน `server/index.js` |
+| `state` กัน CSRF บน OAuth callback | `server/index.js` |
 | `token.json` เขียนด้วยสิทธิ์ `0600` | `writeToken()` ใน `server/google.js` |
-| กรอง token/secret ออกจาก error ที่ส่งให้ browser (ตัวเต็มไปอยู่ใน log ฝั่ง server) | `safe()` ใน `server/index.js` |
-| Gmail ขอแค่ `gmail.readonly` ปฏิทินขอแค่ `calendar.events` + `calendar.readonly` | `SCOPES` ใน `server/google.js` |
-| ปฏิเสธ POST/PATCH/DELETE ที่มี `Origin` เป็นโดเมนอื่น — กันเว็บที่เปิดอยู่ยิงคำสั่งมาที่ localhost แทนเจ้าตัว | middleware ใน `server/index.js` |
+| กรอง token/secret ออกจาก error ที่ส่งให้ browser | `safe()` ใน `server/index.js` |
+| Gmail/Calendar ขอสิทธิ์เท่าที่จำเป็นเท่านั้น ไม่ขอสิทธิ์เต็ม | `SCOPES` ใน `server/google.js` |
+| ปฏิเสธคำสั่งที่มาจากโดเมนอื่น กันเว็บที่เปิดอยู่ยิงคำสั่งมาที่ localhost แทนเจ้าตัว | middleware ใน `server/index.js` |
 | GitHub token ขอแค่ `read:user` (+ `repo` ถ้าอยากเห็น private) | ตั้งตอนสร้าง token |
 
 **สิ่งที่ห้ามขึ้น git** — `.gitignore` กันไว้แล้ว แต่เช็ค `git status` ก่อน push ทุกครั้ง
@@ -152,15 +153,10 @@ ID จะเปลี่ยนทุกครั้งที่ reconnect connec
 .env  .env.*  token.json  *.pem  *.key  credentials*.json  client_secret*.json
 ```
 
-**หลังสร้าง `.env`** ปิดสิทธิ์ให้เจ้าของอ่านคนเดียว
+**หลังสร้าง `.env`** ปิดสิทธิ์ให้เจ้าของอ่านคนเดียว:
 
 ```bash
 chmod 600 .env
 ```
 
-**ข้อควรรู้เรื่อง token**
-
-- Slack user token (`xoxp-`) อ่านได้ทุกอย่างที่บัญชีคุณอ่านได้ **รวม DM ทั้งหมด** — หลุดเมื่อไหร่คือหลุดหมด เพิกถอนได้ที่หน้า OAuth & Permissions ของแอป
-- GitHub personal access token เพิกถอนได้ที่ https://github.com/settings/tokens
-- `token.json` มี refresh token ของ Google — เพิกถอนได้ที่ https://myaccount.google.com/permissions หรือลบไฟล์ทิ้ง (ปุ่ม "ยกเลิกการเชื่อม" ในแท็บเชื่อมต่อ)
-- ถ้าเผลอ commit ความลับขึ้นไปแล้ว **เพิกถอนตัวจริงก่อน** แล้วค่อยล้างประวัติ — การลบ commit ไม่ได้ทำให้ token ที่หลุดไปแล้วใช้ไม่ได้
+**ถ้าเผลอทำ token/secret หลุด** เพิกถอนตัวจริงก่อนเสมอ (ที่ต้นทาง เช่น Slack app, GitHub settings, Google account permissions) แล้วค่อยล้างประวัติ git — การลบ commit ไม่ได้ทำให้ token ที่หลุดไปแล้วใช้ไม่ได้
