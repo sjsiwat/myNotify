@@ -41,7 +41,7 @@ function Header() {
     <div className="flex items-end justify-between gap-4 flex-wrap mb-[22px]">
       <div className="flex items-center gap-[15px]">
         <CatMark />
-        <h1 className="text-[27px] font-extrabold m-0 tracking-[-0.01em] uppercase font-display">ภาพรวมงานของคุณ</h1>
+        <h1 className="wordmark text-[30px] font-extrabold m-0 tracking-[-0.03em] lowercase font-display">notify</h1>
       </div>
       <div className="flex items-center gap-2.5">
         {status?.loginEnabled && (

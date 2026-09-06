@@ -47,3 +47,8 @@ body {
 
 /* ปฏิเสธ scrollbar แนวนอนที่ level ของ document เผื่อ layout ผิดพลาด */
 #root { overflow-x: hidden; }
+
+/* wordmark หัวเว็บ — ตัวหนังสือซ้อนเงาสีแบบเดียวกับปุ่ม neo-brutalism */
+.wordmark {
+  text-shadow: 3px 3px 0 var(--color-accent), 6px 6px 0 var(--color-blue);
+}
