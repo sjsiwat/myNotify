@@ -44,6 +44,14 @@ SESSION_SECRET=<สุ่มด้วยคำสั่งใน SETUP.md>
 
 ขั้นตอนตั้งค่าเต็ม ๆ (Google Cloud Console, redirect URI) อยู่ใน **[SETUP.md §6](SETUP.md)**
 
+## Deploy ขึ้น notify.siwat.me (Render + Cloudflare)
+
+1. **Render** → New → Blueprint → เลือก repo นี้ (มี `render.yaml` อยู่แล้ว กำหนด build/start command ให้เอง)
+2. เติม environment variables ที่ Render ถามตอนสร้าง (ตัวที่เป็นความลับ เช่น `GOOGLE_CLIENT_SECRET`, `SESSION_SECRET`, `SLACK_USER_TOKEN` ฯลฯ) — **ต้องตั้ง `ALLOWED_EMAIL` กับ `SESSION_SECRET` ด้วย** ไม่งั้นใครก็เข้าเว็บสาธารณะนี้แล้วเห็นอีเมล/แชทได้เลย
+3. Render → Settings → Custom Domains → เพิ่ม `notify.siwat.me` จะได้ hostname ปลายทาง (เช่น `mydashboard.onrender.com`) ไว้ผูก DNS
+4. **Cloudflare** → DNS → เพิ่ม CNAME record: `notify` → hostname จาก Render — ตั้งเป็น **DNS only (เมฆเทา)** ก่อน ให้ Render ออก TLS certificate ผ่านได้ ค่อยเปลี่ยนเป็น proxied (เมฆส้ม) ทีหลังได้ถ้าต้องการ
+5. กลับไปที่ Google Cloud Console → เพิ่ม `https://notify.siwat.me/auth/google/callback` และ `https://notify.siwat.me/auth/site/callback` ใน Authorized redirect URIs ของ OAuth client (ให้ตรงกับ `GOOGLE_REDIRECT_URI`/`SITE_REDIRECT_URI` ที่ตั้งใน Render)
+
 ## โครงสร้างโปรเจกต์
 
 ```

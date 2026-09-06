@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: mydashboard
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm --prefix web install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        value: https://notify.siwat.me/auth/google/callback
+      - key: ALLOWED_EMAIL
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: SITE_REDIRECT_URI
+        value: https://notify.siwat.me/auth/site/callback
+      - key: CALENDAR_TZ
+        value: Asia/Bangkok
+      - key: SLACK_USER_TOKEN
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: DISCORD_CHANNEL_IDS
+        sync: false
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: LINE_USER_ID
+        sync: false

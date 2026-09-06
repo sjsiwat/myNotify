@@ -26,6 +26,7 @@ const SECRET_RE =
 const safe = msg => String(msg || 'เกิดข้อผิดพลาด').replace(SECRET_RE, '[ซ่อนไว้]');
 
 const app = express();
+app.set('trust proxy', true); // อยู่หลัง Render/Cloudflare — ต้องอ่าน X-Forwarded-* ให้ req.protocol/req.secure ถูก
 
 /* หน้า login กับ endpoint OAuth ของมันต้องเข้าได้ก่อน login เสมอ ไม่งั้นเข้าไป login ไม่ได้เลย
    ที่เหลือทั้งหมด (รวมไฟล์ static และ /auth/google ของ Gmail) โดน requireAuth คุม
@@ -38,13 +39,17 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(ROOT, 'web', 'dist')));
 app.use(express.json({ limit: '64kb' }));
 
-/* กันเว็บอื่นที่ผู้ใช้เปิดอยู่ยิงคำสั่งมาที่ localhost แทนเจ้าตัว
-   (คำขอ JSON ข้ามโดเมนโดน preflight อยู่แล้ว อันนี้เป็นชั้นที่สอง) */
+/* กันเว็บอื่นที่ผู้ใช้เปิดอยู่ยิงคำสั่งมาแทนเจ้าตัว — เทียบว่า origin ตรงกับ host ที่เสิร์ฟจริงไหม
+   (คำขอ JSON ข้ามโดเมนโดน preflight อยู่แล้ว อันนี้เป็นชั้นที่สอง ใช้ได้ทั้ง localhost และโดเมนที่ deploy จริง) */
 app.use((req, res, next) => {
   if (req.method === 'GET' || req.method === 'HEAD') return next();
   const origin = req.get('origin');
-  if (origin && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) {
-    return res.status(403).json({ error: 'ปฏิเสธคำขอที่มาจากโดเมนอื่น' });
+  if (origin) {
+    let originHost;
+    try { originHost = new URL(origin).host; } catch { originHost = null; }
+    if (originHost !== req.get('host')) {
+      return res.status(403).json({ error: 'ปฏิเสธคำขอที่มาจากโดเมนอื่น' });
+    }
   }
   next();
 });
